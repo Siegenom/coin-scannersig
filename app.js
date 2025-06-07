@@ -1,29 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
     const statusElement = document.getElementById('status');
     statusElement.innerText = "OpenCV.jsをロード中...";
+    statusElement.className = "alert alert-info"; // Bootstrapのスタイルを適用
 
     // window.Moduleオブジェクトを準備
     // OpenCV.jsのWASMファイルの場所を明示的に指定
-    document.addEventListener('DOMContentLoaded', () => {
-    // ... 他のコード ...
-
     window.Module = {
         locateFile: function(path, prefix) {
             if (path.endsWith('.wasm')) {
-                // ここをあなたのGitHub Pagesの絶対パスに修正します
-                // パスは 'https://あなたのユーザー名.github.io/リポジトリ名/lib/opencv_js.wasm' となるはずです
-                return 'https://siegenom.github.io/coin-scannersig/lib/opencv_js.wasm'; 
+                // 絶対パスを指定する (GitHub PagesのURLを正確に記述)
+                // ここをあなたのGitHub PagesサイトのルートURLに置き換える
+                return 'https://siegenom.github.io/coin-scannersig/lib/' + path;
             }
             return prefix + path;
         },
-        onRuntimeInitialized: function() {
-            // ... 以降のコード ...
-        }
-    };
-});
-        // ... 以降のコードは変更なし ...
-    }
-};
         onRuntimeInitialized: function() {
             // OpenCV.jsのWASMモジュールが完全にロードされ、初期化が完了したときに呼び出される関数
             try {
@@ -32,11 +22,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 mat.delete(); // メモリ解放
 
                 statusElement.innerText = "OpenCV.jsが正常にロードされ、cv.Matが利用可能です！";
-                statusElement.style.color = "green";
+                statusElement.className = "alert alert-success"; // Bootstrapの成功スタイル
                 console.log("OpenCV.jsが正常にロードされ、cv.Matが利用可能です！");
+
+                // jQueryとLodashが使えるかも試してみる (オプション)
+                if (typeof jQuery !== 'undefined') {
+                    console.log("jQueryもロードされています！");
+                }
+                if (typeof _ !== 'undefined') { // Lodashは通常 '_' というグローバル変数でアクセス
+                    console.log("Lodashもロードされています！");
+                }
+
             } catch (e) {
                 statusElement.innerText = "OpenCV.jsのロードまたはcv.Matの利用に失敗しました: " + e.message;
-                statusElement.style.color = "red";
+                statusElement.className = "alert alert-danger"; // Bootstrapの失敗スタイル
                 console.error("OpenCV.jsのロードまたはcv.Matの利用に失敗しました:", e);
             }
         }
