@@ -15,19 +15,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateStatus("OpenCV.jsの初期化準備中...", "info");
 
-    // --- ステップ 1: opencv.jsが読み込まれる前に、グローバル空間にModuleオブジェクトを準備します ---
-    // このオブジェクトはopencv.jsの初期化設定として利用されます。
+    // --- ステップ 1: Moduleオブジェクトを準備します ---
     window.Module = {
         /**
          * locateFileは、opencv.jsが必要なファイル（特にWASMファイル）を見つけるために使用します。
-         * これにより、ライブラリが正しいパスからファイルを非同期に読み込むようになります。
-         * 手動でfetchする代わりに、ファイルの場所をライブラリに教えます。
+         * ここでWASMファイルの完全なURLを返すことで、ライブラリは正しくファイルを非同期に読み込みます。
          */
         locateFile: (path, scriptDirectory) => {
+            // ★変更点：無効だったURLを、利用可能なバージョン4.8.0のURLに修正
+            const wasmUrl = 'https://cdn.jsdelivr.net/npm/opencv-js@4.8.0/dist/opencv_js.wasm';
             if (path === 'opencv_js.wasm') {
-                updateStatus(`WASMファイル "${path}" の場所を特定中...`, 'info');
-                // WASMファイルの完全なURLを返します。
-                return 'https://siegenom.github.io/coin-scannersig/lib/opencv_js.wasm';
+                updateStatus(`WASMファイル "${path}" を "${wasmUrl}" から読み込みます...`, 'info');
+                return wasmUrl;
             }
             return scriptDirectory + path;
         },
@@ -36,9 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
         onRuntimeInitialized: () => {
             try {
                 updateStatus("OpenCVランタイム初期化完了。テスト実行中...", "info");
-                // 簡単なテストを実行して、cvオブジェクトが利用可能か確認します
                 const mat = new cv.Mat(5, 5, cv.CV_8UC4, new cv.Scalar(0, 255, 0, 255));
-                mat.delete(); // メモリ解放を忘れずに
+                mat.delete(); 
 
                 updateStatus("成功: OpenCV.jsが正常にロードされ、利用可能です！", "success");
                 
@@ -48,22 +46,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
         
-        // エラーハンドリング
         onAbort: (reason) => {
              console.error("OpenCV.jsのランタイムが中断されました:", reason);
              updateStatus(`致命的エラー: OpenCV.jsのランタイムが中断されました - ${reason}`, "danger");
         }
     };
 
-    // --- ステップ 2: Moduleオブジェクトの準備ができたので、opencv.jsのスクリプトを動的に読み込みます ---
-    updateStatus("opencv.jsスクリプトを読み込んでいます...", "info");
+    // --- ステップ 2: opencv.jsのスクリプトを動的に読み込みます ---
+    updateStatus("opencv.jsスクリプトをCDNから読み込んでいます...", "info");
     const script = document.createElement('script');
-    script.src = 'lib/opencv.js'; // 読み込むスクリプトのパス
-    script.async = true; // 非同期で読み込む
+    
+    // ★変更点：スクリプトのソースも、利用可能なバージョン4.8.0のURLに修正
+    script.src = 'https://cdn.jsdelivr.net/npm/opencv-js@4.8.0/dist/opencv.js';
+    
+    script.async = true;
     script.id = 'opencv-script';
     script.onerror = () => {
         updateStatus("エラー: opencv.jsスクリプトの読み込みに失敗しました。", "danger");
-        console.error("opencv.jsスクリプトの読み込みに失敗しました。パスが正しいか確認してください。");
     };
     document.body.appendChild(script);
 });
