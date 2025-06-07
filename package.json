@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "bootstrap": "^5.3.6",
+    "jquery": "^3.7.1",
+    "lodash": "^4.17.21",
+    "opencv-ts": "^1.3.6",
+    "opencv-wasm": "^4.3.0-10",
+    "opencv.js": "^1.2.1"
+  }
+}
