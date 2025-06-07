@@ -1,2 +1,3 @@
 # coin-scannersig
 for iphone
+.
