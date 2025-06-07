@@ -6,13 +6,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // OpenCV.jsのWASMファイルの場所を明示的に指定
     window.Module = {
         // この locateFile が重要です。opencv_js.wasm の場所を正確に伝えます。
-        locateFile: function(path, prefix) {
-            if (path.endsWith('.wasm')) {
-                // opencv_js.wasm が lib フォルダ内にあるので、そのパスを返します
-                return 'lib/' + path;
-            }
-            return prefix + path;
-        },
+     window.Module = {
+    locateFile: function(path, prefix) {
+        if (path.endsWith('.wasm')) {
+            // 絶対パスを指定する (GitHub PagesのURLを正確に記述)
+            // 'https://Siegenom.github.io/coin-scannersig/' の部分をあなたのサイトのルートURLに置き換える
+            return 'https://Siegenom.github.io/coin-scannersig/lib/' + path;
+        }
+        return prefix + path;
+    },
+    onRuntimeInitialized: function() {
+        // ... 以降のコードは変更なし ...
+    }
+};
         onRuntimeInitialized: function() {
             // OpenCV.jsのWASMモジュールが完全にロードされ、初期化が完了したときに呼び出される関数
             try {
