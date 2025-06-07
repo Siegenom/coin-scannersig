@@ -19,11 +19,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.Module = {
         /**
          * locateFileは、opencv.jsが必要なファイル（特にWASMファイル）を見つけるために使用します。
-         * ここでWASMファイルの完全なURLを返すことで、ライブラリは正しくファイルを非同期に読み込みます。
          */
         locateFile: (path, scriptDirectory) => {
-            // ★変更点：無効だったURLを、利用可能なバージョン4.8.0のURLに修正
-            const wasmUrl = 'https://cdn.jsdelivr.net/npm/opencv-js@4.8.0/dist/opencv_js.wasm';
+            // ★変更点：CDNをjsDelivrからunpkgに変更
+            const wasmUrl = 'https://unpkg.com/opencv-js@4.8.0/dist/opencv_js.wasm';
             if (path === 'opencv_js.wasm') {
                 updateStatus(`WASMファイル "${path}" を "${wasmUrl}" から読み込みます...`, 'info');
                 return wasmUrl;
@@ -31,7 +30,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return scriptDirectory + path;
         },
         
-        // このコールバックはOpenCVのランタイムが準備完了したときに呼び出されます
         onRuntimeInitialized: () => {
             try {
                 updateStatus("OpenCVランタイム初期化完了。テスト実行中...", "info");
@@ -56,8 +54,8 @@ document.addEventListener('DOMContentLoaded', () => {
     updateStatus("opencv.jsスクリプトをCDNから読み込んでいます...", "info");
     const script = document.createElement('script');
     
-    // ★変更点：スクリプトのソースも、利用可能なバージョン4.8.0のURLに修正
-    script.src = 'https://cdn.jsdelivr.net/npm/opencv-js@4.8.0/dist/opencv.js';
+    // ★変更点：スクリプトのソースもunpkgのURLに変更
+    script.src = 'https://unpkg.com/opencv-js@4.8.0/dist/opencv.js';
     
     script.async = true;
     script.id = 'opencv-script';
