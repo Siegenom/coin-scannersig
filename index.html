@@ -16,6 +16,7 @@
         }
         .alert {
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: background-color 0.3s ease;
         }
     </style>
 </head>
@@ -27,9 +28,8 @@
         </div>
     </div>
 
-    <!-- ライブラリの読み込み -->
-    <!-- app.jsが全ての処理を管理するため、ここでのopencv.jsの読み込みは不要です -->
-    <!-- <script async src="lib/opencv.js" type="text/javascript"></script> -->
+    <!-- ★重要★：ここにあったopencv.jsのscriptタグは削除されています。 -->
+    <!-- 読み込みはすべてapp.jsが管理します。 -->
 
     <!-- アプリケーションのメインスクリプト -->
     <script src="app.js"></script>
