@@ -13,8 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const appChangesElement = document.getElementById('appChanges'); // アプリケーション変更点表示要素
 
     // アプリケーションのバージョンと変更点
-    const APP_VERSION = "v1.0.6"; // バージョンを更新
-    const APP_CHANGES = "バージョン情報とアプリ名・変更点のHTML埋め込み。publish.shとの連携。"; // 今回の変更点
+    const APP_VERSION = "v1.0.7"; // バージョンは変更なし (IndexSizeErrorの修正)
+    const APP_CHANGES = "初期画像の'IndexSizeError'修正。コイン検出の前処理と円検出ロジック導入。"; // 今回の変更点
 
     if (appVersionElement) {
         appVersionElement.innerText = `Version: ${APP_VERSION}`;
@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fileInput.addEventListener('change', handleImageUpload);
 
             // --- 初期画像の処理を開始 ---
+            // hiddenImageForProcessingが完全にロードされてから処理を開始するように修正
             if (hiddenImageForProcessing.complete) {
                 processInitialImage();
             } else {
@@ -66,7 +67,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     statusElement.innerText = "初期画像 (" + hiddenImageForProcessing.src + ") のロードに失敗しました。";
                     statusElement.className = "alert alert-danger text-center";
                     console.error("初期画像ロードエラー: ", hiddenImageForProcessing.src);
-                    outputCanvas.style.display = 'none';
+                    // エラー時はoutputCanvasを非表示にし、ボタン状態をリセット
+                    outputCanvas.style.display = 'none'; 
+                    captureButton.disabled = false;
+                    captureButton.innerText = 'カメラ起動';
+                    stopButton.disabled = true;
                 };
             }
 
@@ -84,14 +89,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         videoElement.style.display = 'none';
         
+        // Canvasのサイズを画像に合わせる
         outputCanvas.width = hiddenImageForProcessing.naturalWidth;
         outputCanvas.height = hiddenImageForProcessing.naturalHeight;
-        outputContext.drawImage(hiddenImageForProcessing, 0, 0, outputCanvas.width, outputCanvas.height);
-        outputCanvas.style.display = 'block'; 
+        // hiddenImageForProcessing から直接imreadを呼び出す
+        let srcMat = cv.imread(hiddenImageForProcessing); 
+        outputCanvas.style.display = 'block'; // Canvasを表示
 
-        let srcMat = cv.imread(outputCanvas);
-        processAndDisplayCoins(srcMat); 
-        srcMat.delete(); 
+        // 処理結果をCanvasに描画するため、一度だけ描画
+        outputContext.drawImage(hiddenImageForProcessing, 0, 0, outputCanvas.width, outputCanvas.height);
+        
+        processAndDisplayCoins(srcMat); // 画像処理と表示
+        srcMat.delete(); // メモリ解放
 
         statusElement.innerText = "初期画像の処理が完了しました。";
         statusElement.className = "alert alert-success text-center";
@@ -255,12 +264,12 @@ document.addEventListener('DOMContentLoaded', () => {
             img.onload = function() {
                 outputCanvas.width = img.width;
                 outputCanvas.height = img.height;
-                outputContext.drawImage(img, 0, 0, img.width, img.height);
+                outputContext.drawImage(img, 0, 0, img.width, img.height); // 画像をCanvasに描画
                 
                 statusElement.innerText = "画像が読み込まれました。処理中...";
                 statusElement.className = "alert alert-success text-center";
                 
-                let srcMat = cv.imread(outputCanvas);
+                let srcMat = cv.imread(img); // Image要素から直接imreadを呼び出す
                 processAndDisplayCoins(srcMat); 
                 srcMat.delete(); 
 
@@ -291,27 +300,56 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- コイン認識・計数および表示の共通ロジック ---
     function processAndDisplayCoins(srcMat) {
         let dstMat = new cv.Mat();
+        let circles = new cv.Mat(); 
 
         cv.cvtColor(srcMat, dstMat, cv.COLOR_RGBA2GRAY);
+        cv.GaussianBlur(dstMat, dstMat, new cv.Size(9, 9), 2, 2); 
         cv.Canny(dstMat, dstMat, 50, 100, 3, false); 
 
-        cv.imshow('outputCanvas', dstMat); 
+        let minRadius = Math.max(10, Math.floor(srcMat.cols / 40));
+        let maxRadius = Math.min(200, Math.floor(srcMat.cols / 8)); 
 
-        const counts = detectAndCountCoins(srcMat); 
+        cv.HoughCircles(dstMat, circles, cv.HOUGH_GRADIENT, 1, 
+                        minRadius, 
+                        param1=100, param2=30, minRadius=minRadius, maxRadius=maxRadius); 
+        
+        let displayMat = new cv.Mat();
+        cv.cvtColor(srcMat, displayMat, cv.COLOR_RGBA2RGB); 
+        
+        for (let i = 0; i < circles.cols; ++i) {
+            let x = circles.data32F[i * 3];
+            let y = circles.data32F[i * 3 + 1];
+            let radius = circles.data32F[i * 3 + 2];
+            let center = new cv.Point(x, y);
+            cv.circle(displayMat, center, 3, new cv.Scalar(0, 255, 0, 255), -1);
+            cv.circle(displayMat, center, radius, new cv.Scalar(255, 0, 0, 255), 3);
+        }
+
+        cv.imshow('outputCanvas', displayMat); 
+
+        const detectedCoinCount = circles.cols;
+        const counts = detectAndCountCoins(srcMat, detectedCoinCount); 
         updateDisplay(counts);
 
         dstMat.delete();
+        circles.delete();
+        displayMat.delete(); 
     }
 
     // --- コイン認識・計数ロジック（ダミー） ---
-    function detectAndCountCoins(imageMat) {
+    function detectAndCountCoins(imageMat, detectedCount = 0) {
         const dummyCounts = {
-            '100': Math.floor(Math.random() * 5),
-            '50': Math.floor(Math.random() * 5),
-            '10': Math.floor(Math.random() * 5),
-            '5': Math.floor(Math.random() * 5),
-            '1': Math.floor(Math.random() * 5),
+            '100': 0,
+            '50': 0,
+            '10': 0,
+            '5': 0,
+            '1': 0,
         };
+
+        if (detectedCount > 0) {
+            dummyCounts['10'] = detectedCount;
+        }
+        
         return dummyCounts;
     }
 
