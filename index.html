@@ -4,23 +4,6 @@
     <title>カメラで幾ら？ (Coin Camera Counter)</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="version" content="v1.0.4"> <link rel="stylesheet" href="lib/bootstrap.min.css">
-    <style>
-        body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background-color: #f8f9fa; }
-        .container { max-width: 600px; width: 100%; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        video, canvas, #initialImageDisplay { display: block; width: 100%; height: auto; border: 1px solid #dee2e6; border-radius: 4px; margin-bottom: 15px; background-color: #000; }
-        .result-box { background-color: #e9ecef; padding: 15px; border-radius: 4px; margin-top: 20px; }
-        .result-box h4 { margin-top: 0; color: #495057; }
-        .result-box p { font-size: 1.1rem; margin-bottom: 5px; }
-        .result-box strong { color: #007bff; }
-        #fileInput { margin-bottom: 10px; }
-        #appVersion { font-size: 0.9em; color: #6c757d; margin-top: -15px; margin-bottom: 15px; }
-    </style><!DOCTYPE html>
-<html>
-<head>
-    <title>カメラで幾ら？ (Coin Camera Counter)</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="app-name" content="カメラで幾ら？">
     <meta name="version" content="v1.0.6"> <meta name="changes" content="バージョン情報とアプリ名・変更点のHTML埋め込み。publish.shとの連携。"> <link rel="stylesheet" href="lib/bootstrap.min.css">
     <style>
@@ -44,48 +27,6 @@
             <span id="appChanges"></span>
         </p>
         <p id="status" class="alert alert-info text-center">OpenCV.jsをロード中...</p>
-
-        <input type="file" id="fileInput" class="form-control" accept="image/*">
-
-        <img src="./IMG_9013.jpeg" id="initialImageDisplay" style="width: 100%; height: auto;">
-        
-        <video id="cameraFeed" playsinline autoplay style="display: none;"></video>
-
-        <canvas id="outputCanvas" style="display: none;"></canvas>
-
-        <img id="hiddenImageForProcessing" src="./IMG_9013.jpeg" style="display: none;">
-
-        <div class="d-grid gap-2">
-            <button id="captureButton" class="btn btn-primary btn-lg" disabled>カメラ起動</button>
-            <button id="stopButton" class="btn btn-secondary btn-lg" disabled>停止</button>
-        </div>
-
-        <div class="result-box mt-4">
-            <h4 class="text-center">計数結果</h4>
-            <p>100円玉: <strong id="count100">0</strong>枚</p>
-            <p>50円玉: <strong id="count50">0</strong>枚</p>
-            <p>10円玉: <strong id="count10">0</strong>枚</p>
-            <p>5円玉: <strong id="count5">0</strong>枚</p>
-            <p>1円玉: <strong id="count1">0</strong>枚</p>
-            <h3 class="text-center mt-3">合計金額: <strong id="totalAmount">0</strong>円</h3>
-        </div>
-    </div>
-
-    <script src="lib/jquery.min.js"></script>
-    <script src="lib/bootstrap.min.js"></script>
-    <script src="lib/lodash.min.js"></script>
-    
-    <script src="lib/opencv.js" type="text/javascript"></script>
-
-    <script src="app.js" type="text/javascript"></script>
-
-</body>
-</html>
-</head>
-<body>
-    <div class="container mt-5">
-        <h1 class="text-center mb-0">カメラで幾ら？</h1>
-        <p id="appVersion" class="text-center"></p> <p id="status" class="alert alert-info text-center">OpenCV.jsをロード中...</p>
 
         <input type="file" id="fileInput" class="form-control" accept="image/*">
 
