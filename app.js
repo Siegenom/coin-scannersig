@@ -1,3 +1,4 @@
+// app.js
 document.addEventListener('DOMContentLoaded', () => {
     const statusElement = document.getElementById('status');
     const videoElement = document.getElementById('cameraFeed');
@@ -20,31 +21,30 @@ document.addEventListener('DOMContentLoaded', () => {
     statusElement.innerText = "OpenCV.jsをロード中...";
     statusElement.className = "alert alert-info text-center";
 
-    // --- OpenCV.jsの初期化 ---
-    window.Module = {
-        onRuntimeInitialized: function() {
-            try {
-                // OpenCV.jsの基本動作確認 (cv.Matコンストラクタ)
-                const testMat = new cv.Mat(10, 10, cv.CV_8UC3);
-                testMat.delete();
+    // --- OpenCV.jsの初期化コールバックを設定 ---
+    // OpenCV.js（単一ファイル版）がロードされ、内部のWebAssemblyが初期化された後にこの関数が呼ばれる
+    // window.Moduleオブジェクトはopencv.jsによって定義されることを想定
+    window.Module = window.Module || {}; // 念のため、window.Moduleが存在しない場合に備える
+    window.Module.onRuntimeInitialized = function() {
+        try {
+            // OpenCV.jsのcvオブジェクトが利用可能になったことを確認
+            const testMat = new cv.Mat(10, 10, cv.CV_8UC3);
+            testMat.delete();
 
-                statusElement.innerText = "OpenCV.jsが正常にロードされました！";
-                statusElement.className = "alert alert-success text-center";
-                console.log("OpenCV.jsが正常にロードされました！");
+            statusElement.innerText = "OpenCV.jsが正常にロードされました！ カメラを起動できます。";
+            statusElement.className = "alert alert-success text-center";
+            console.log("OpenCV.jsが正常にロードされました！");
 
-                // カメラ起動ボタンを有効化
-                captureButton.disabled = false;
-                stopButton.disabled = true; // 最初は停止ボタンは無効
+            captureButton.disabled = false;
+            stopButton.disabled = true;
 
-                // イベントリスナー設定
-                captureButton.addEventListener('click', startCounting);
-                stopButton.addEventListener('click', stopCounting);
+            captureButton.addEventListener('click', startCounting);
+            stopButton.addEventListener('click', stopCounting);
 
-            } catch (e) {
-                statusElement.innerText = `OpenCV.jsの初期化に失敗しました: ${e.message}`;
-                statusElement.className = "alert alert-danger text-center";
-                console.error("OpenCV.js 初期化エラー:", e);
-            }
+        } catch (e) {
+            statusElement.innerText = `OpenCV.jsの初期化に失敗しました: ${e.message}`;
+            statusElement.className = "alert alert-danger text-center";
+            console.error("OpenCV.js 初期化エラー:", e);
         }
     };
 
@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusElement.className = "alert alert-warning text-center";
         
         try {
-            // 前面カメラ (user) ではなく、背面カメラ (environment) を優先してアクセス
+            // 背面カメラ (environment) を優先してアクセス
             videoStream = await navigator.mediaDevices.getUserMedia({ 
                 video: { facingMode: 'environment' } 
             });
@@ -115,28 +115,28 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // videoフレームをcanvasに描画
         outputContext.drawImage(videoElement, 0, 0, outputCanvas.width, outputCanvas.height);
 
         // canvasからOpenCVのMatオブジェクトを作成
-        let src = cv.imread(outputCanvas);
-        let dst = new cv.Mat();
+        // この時点では、カメラ映像のMatオブジェクトがsrcMatになる
+        let srcMat = cv.imread(outputCanvas);
+        let dstMat = new cv.Mat();
 
         // --- ここにコインの認識・計数ロジックを実装します ---
-        // 例としてグレースケール変換とエッジ検出のみ行います
-        cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
-        cv.Canny(dst, dst, 50, 100, 3, false); // Cannyエッジ検出
+        // 例: グレースケール変換とエッジ検出
+        cv.cvtColor(srcMat, dstMat, cv.COLOR_RGBA2GRAY);
+        cv.Canny(dstMat, dstMat, 50, 100, 3, false); // Cannyエッジ検出
 
         // 処理結果をcanvasに表示
-        cv.imshow('outputCanvas', dst);
+        cv.imshow('outputCanvas', dstMat); // 変換された画像をoutputCanvasに表示
 
-        // 検出・計数処理 (ダミー関数)
-        const counts = detectAndCountCoins(src); // src (カラー画像) を渡す
+        // コインの検出・計数処理 (ダミー関数)
+        const counts = detectAndCountCoins(srcMat); // 元のカラー画像（srcMat）を渡す
         updateDisplay(counts);
 
         // メモリ解放
-        src.delete();
-        dst.delete();
+        srcMat.delete();
+        dstMat.delete();
 
         // 次のフレームを処理
         animationFrameId = requestAnimationFrame(processVideo);
