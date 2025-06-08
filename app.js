@@ -1,66 +1,99 @@
-// DOMの読み込みが完了したら処理を開始
 document.addEventListener('DOMContentLoaded', () => {
     const statusElement = document.getElementById('status');
-    
-    /**
-     * ステータスメッセージを画面とコンソールに表示するヘルパー関数
-     * @param {string} message - 表示するメッセージ
-     * @param {'info' | 'success' | 'danger' | 'warning'} type - メッセージの種類
-     */
-    const updateStatus = (message, type) => {
-        statusElement.innerText = message;
-        statusElement.className = `alert alert-${type}`;
-        console.log(`[Status: ${type}] ${message}`);
-    };
+    statusElement.innerText = "OpenCV.jsをロード中...";
+    statusElement.className = "alert alert-info"; // Bootstrapのスタイルを適用
 
-    updateStatus("OpenCV.jsの初期化準備中...", "info");
-
-    // --- ステップ 1: Moduleオブジェクトを準備します ---
+    // window.Moduleオブジェクトの準備
+    // OpenCV.jsがWebAssemblyコードを内部に含むことを想定し、特別なWASMロード設定は不要
     window.Module = {
-        /**
-         * locateFileは、opencv.jsが必要なファイル（特にWASMファイル）を見つけるために使用します。
-         */
-        locateFile: (path, scriptDirectory) => {
-            // ★変更点：CDNをjsDelivrからunpkgに変更
-            const wasmUrl = 'https://unpkg.com/opencv-js@4.8.0/dist/opencv_js.wasm';
-            if (path === 'opencv_js.wasm') {
-                updateStatus(`WASMファイル "${path}" を "${wasmUrl}" から読み込みます...`, 'info');
-                return wasmUrl;
-            }
-            return scriptDirectory + path;
-        },
-        
-        onRuntimeInitialized: () => {
+        onRuntimeInitialized: function() {
+            // OpenCV.jsのWASMモジュールが完全にロードされ、初期化が完了したときに呼び出される関数
             try {
-                updateStatus("OpenCVランタイム初期化完了。テスト実行中...", "info");
-                const mat = new cv.Mat(5, 5, cv.CV_8UC4, new cv.Scalar(0, 255, 0, 255));
-                mat.delete(); 
+                // cv.Mat コンストラクタが利用可能か確認
+                const mat = new cv.Mat(10, 10, cv.CV_8UC3); // 10x10の8ビット符号なし3チャンネル行列を作成
+                mat.delete(); // メモリ解放
 
-                updateStatus("成功: OpenCV.jsが正常にロードされ、利用可能です！", "success");
-                
+                statusElement.innerText = "OpenCV.jsが正常にロードされ、cv.Matが利用可能です！ カメラを起動します...";
+                statusElement.className = "alert alert-success"; // Bootstrapの成功スタイル
+                console.log("OpenCV.jsが正常にロードされ、cv.Matが利用可能です！");
+
+                // jQueryとLodashが使えるかも試してみる (オプション)
+                if (typeof jQuery !== 'undefined') {
+                    console.log("jQueryもロードされています！");
+                }
+                if (typeof _ !== 'undefined') {
+                    console.log("Lodashもロードされています！");
+                }
+
+                // --- ここからカメラと画像処理のロジックを開始します ---
+                startCamera();
+
             } catch (e) {
-                console.error("OpenCV.jsのテスト実行中にエラーが発生しました:", e);
-                updateStatus(`エラー: OpenCV.jsのテスト実行に失敗しました - ${e.message}`, "danger");
+                statusElement.innerText = "OpenCV.jsのロードまたは初期化に失敗しました: " + e.message;
+                statusElement.className = "alert alert-danger"; // Bootstrapの失敗スタイル
+                console.error("OpenCV.jsのロードまたは初期化に失敗しました:", e);
             }
-        },
-        
-        onAbort: (reason) => {
-             console.error("OpenCV.jsのランタイムが中断されました:", reason);
-             updateStatus(`致命的エラー: OpenCV.jsのランタイムが中断されました - ${reason}`, "danger");
         }
     };
 
-    // --- ステップ 2: opencv.jsのスクリプトを動的に読み込みます ---
-    updateStatus("opencv.jsスクリプトをCDNから読み込んでいます...", "info");
-    const script = document.createElement('script');
-    
-    // ★変更点：スクリプトのソースもunpkgのURLに変更
-    script.src = 'https://unpkg.com/opencv-js@4.8.0/dist/opencv.js';
-    
-    script.async = true;
-    script.id = 'opencv-script';
-    script.onerror = () => {
-        updateStatus("エラー: opencv.jsスクリプトの読み込みに失敗しました。", "danger");
-    };
-    document.body.appendChild(script);
+    // --- カメラの起動と映像処理の関数 ---
+    async function startCamera() {
+        const video = document.getElementById('cameraFeed');
+        const canvas = document.getElementById('cameraCanvas');
+        const context = canvas.getContext('2d');
+
+        try {
+            // カメラにアクセスし、映像ストリームを取得
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); // 背面カメラを優先
+            video.srcObject = stream;
+            video.style.display = 'block'; // video要素を表示
+
+            video.onloadedmetadata = () => {
+                // video要素のサイズに合わせてcanvasのサイズを設定
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                statusElement.innerText = "カメラが起動しました！";
+
+                // 映像が再生されたら、フレームごとに画像処理を行う
+                video.play();
+                requestAnimationFrame(processVideo);
+            };
+
+        } catch (err) {
+            statusElement.innerText = `カメラへのアクセスに失敗しました: ${err.message}`;
+            statusElement.className = "alert alert-danger";
+            console.error("カメラアクセスエラー:", err);
+        }
+    }
+
+    function processVideo() {
+        const video = document.getElementById('cameraFeed');
+        const canvas = document.getElementById('cameraCanvas');
+        const context = canvas.getContext('2d');
+
+        if (video.paused || video.ended) {
+            return;
+        }
+
+        // videoフレームをcanvasに描画
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // canvasからOpenCVのMatオブジェクトを作成
+        let src = cv.imread(canvas);
+        let dst = new cv.Mat();
+
+        // 例: グレースケール変換とエッジ検出
+        cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
+        cv.Canny(dst, dst, 50, 100, 3, false); // Cannyエッジ検出
+
+        // 処理結果をcanvasに表示
+        cv.imshow(canvas, dst);
+
+        // メモリ解放
+        src.delete();
+        dst.delete();
+
+        // 次のフレームを処理
+        requestAnimationFrame(processVideo);
+    }
 });
