@@ -1,4 +1,3 @@
-// app.js
 document.addEventListener('DOMContentLoaded', () => {
     const statusElement = document.getElementById('status');
     const videoElement = document.getElementById('cameraFeed');
@@ -6,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const outputContext = outputCanvas.getContext('2d');
     const captureButton = document.getElementById('captureButton');
     const stopButton = document.getElementById('stopButton');
+    const fileInput = document.getElementById('fileInput'); // ファイル入力要素への参照
 
     // 結果表示要素
     const count100 = document.getElementById('count100');
@@ -17,29 +17,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let videoStream = null; // カメラのストリームを保持
     let animationFrameId = null; // requestAnimationFrame のIDを保持
+    let processingMode = 'none'; // 'camera', 'image', 'none'
 
     statusElement.innerText = "OpenCV.jsをロード中...";
     statusElement.className = "alert alert-info text-center";
 
     // --- OpenCV.jsの初期化コールバックを設定 ---
-    // OpenCV.js（単一ファイル版）がロードされ、内部のWebAssemblyが初期化された後にこの関数が呼ばれる
-    // window.Moduleオブジェクトはopencv.jsによって定義されることを想定
-    window.Module = window.Module || {}; // 念のため、window.Moduleが存在しない場合に備える
+    window.Module = window.Module || {};
     window.Module.onRuntimeInitialized = function() {
         try {
             // OpenCV.jsのcvオブジェクトが利用可能になったことを確認
             const testMat = new cv.Mat(10, 10, cv.CV_8UC3);
             testMat.delete();
 
-            statusElement.innerText = "OpenCV.jsが正常にロードされました！ カメラを起動できます。";
+            statusElement.innerText = "OpenCV.jsが正常にロードされました！ 画像を選択するか、カメラを起動できます。";
             statusElement.className = "alert alert-success text-center";
             console.log("OpenCV.jsが正常にロードされました！");
 
-            captureButton.disabled = false;
+            captureButton.disabled = false; // カメラ起動ボタンを有効化
             stopButton.disabled = true;
 
-            captureButton.addEventListener('click', startCounting);
-            stopButton.addEventListener('click', stopCounting);
+            // イベントリスナー設定
+            captureButton.addEventListener('click', toggleCamera);
+            stopButton.addEventListener('click', stopProcessing);
+            fileInput.addEventListener('change', handleImageUpload);
 
         } catch (e) {
             statusElement.innerText = `OpenCV.jsの初期化に失敗しました: ${e.message}`;
@@ -48,57 +49,92 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- カメラの起動と映像処理 ---
-    async function startCounting() {
+    // --- カメラの起動と停止を切り替える ---
+    async function toggleCamera() {
+        if (processingMode === 'camera') {
+            stopCamera();
+        } else {
+            // 画像処理中であれば停止
+            if (processingMode === 'image') {
+                stopProcessing();
+            }
+            startCamera();
+        }
+    }
+
+    async function startCamera() {
         statusElement.innerText = "カメラを起動中...";
         statusElement.className = "alert alert-warning text-center";
         
+        // UIを調整
+        fileInput.disabled = true; // カメラ中はファイル選択不可
+        captureButton.innerText = 'カメラ停止';
+        stopButton.disabled = false;
+        videoElement.style.display = 'block'; // video要素を表示
+        outputCanvas.style.display = 'block'; // canvas要素を表示
+
         try {
-            // 背面カメラ (environment) を優先してアクセス
             videoStream = await navigator.mediaDevices.getUserMedia({ 
                 video: { facingMode: 'environment' } 
             });
             videoElement.srcObject = videoStream;
-            videoElement.style.display = 'block'; // video要素を表示
-            outputCanvas.style.display = 'block'; // canvas要素を表示
-
+            
             videoElement.onloadedmetadata = () => {
-                // video要素のサイズに合わせてcanvasのサイズを設定
                 outputCanvas.width = videoElement.videoWidth;
                 outputCanvas.height = videoElement.videoHeight;
                 statusElement.innerText = "カメラが起動しました！ 計数準備完了。";
                 statusElement.className = "alert alert-success text-center";
                 
                 videoElement.play();
-                captureButton.disabled = true; // 計数開始後はボタン無効化
-                stopButton.disabled = false; // 停止ボタン有効化
-                
-                // 映像処理ループを開始
-                requestAnimationFrame(processVideo);
+                processingMode = 'camera';
+                requestAnimationFrame(processFrame);
             };
 
         } catch (err) {
             statusElement.innerText = `カメラへのアクセスに失敗しました: ${err.message}`;
             statusElement.className = "alert alert-danger text-center";
             console.error("カメラアクセスエラー:", err);
-            captureButton.disabled = false; // 再度開始できるように
-            stopButton.disabled = true;
+            
+            // エラー時はUIを元に戻す
+            stopCamera(); // カメラが起動しなかった場合は停止処理
+            captureButton.innerText = 'カメラ起動';
+            fileInput.disabled = false;
         }
     }
 
-    function stopCounting() {
+    function stopCamera() {
         if (videoStream) {
-            videoStream.getTracks().forEach(track => track.stop()); // カメラ停止
+            videoStream.getTracks().forEach(track => track.stop());
             videoElement.srcObject = null;
-            videoElement.style.display = 'none'; // video要素を非表示
-            outputCanvas.style.display = 'none'; // canvas要素を非表示
-            cancelAnimationFrame(animationFrameId); // 映像処理ループを停止
-            statusElement.innerText = "計数を停止しました。";
+            videoElement.style.display = 'none';
+            videoStream = null;
+        }
+        captureButton.innerText = 'カメラ起動';
+        stopButton.disabled = true;
+        fileInput.disabled = false; // カメラ停止時はファイル選択可能に
+        if (processingMode === 'camera') { // カメラモードからの停止であれば
+            processingMode = 'none';
+            outputCanvas.style.display = 'none'; // canvasも非表示
+            resetCounts();
+            statusElement.innerText = "カメラを停止しました。";
             statusElement.className = "alert alert-info text-center";
         }
-        captureButton.disabled = false; // 計数開始ボタンを再度有効化
+        cancelAnimationFrame(animationFrameId); // ループ停止
+    }
+
+    function stopProcessing() {
+        stopCamera(); // カメラが起動していれば停止
+        processingMode = 'none';
+        cancelAnimationFrame(animationFrameId); // 処理ループを停止
+        statusElement.innerText = "処理を停止しました。";
+        statusElement.className = "alert alert-info text-center";
+        resetCounts();
+        outputCanvas.style.display = 'none'; // canvasも非表示
+        
+        captureButton.innerText = 'カメラ起動';
+        captureButton.disabled = false;
         stopButton.disabled = true;
-        resetCounts(); // 計数結果をリセット
+        fileInput.disabled = false; // 停止時はファイル選択可能に
     }
 
     function resetCounts() {
@@ -110,24 +146,57 @@ document.addEventListener('DOMContentLoaded', () => {
         totalAmount.innerText = '0';
     }
 
-    function processVideo() {
-        if (videoElement.paused || videoElement.ended) {
-            return;
+    // --- 映像処理ループ ---
+    function processFrame() {
+        if (processingMode === 'camera' && !videoElement.paused && !videoElement.ended && videoStream) {
+            outputContext.drawImage(videoElement, 0, 0, outputCanvas.width, outputCanvas.height);
+            processCvImage();
         }
+        animationFrameId = requestAnimationFrame(processFrame);
+    }
 
-        outputContext.drawImage(videoElement, 0, 0, outputCanvas.width, outputCanvas.height);
+    // --- 画像ファイル読み込み ---
+    function handleImageUpload(event) {
+        stopProcessing(); // 現在の処理を停止 (カメラや以前の画像処理)
+        processingMode = 'image';
+        
+        const file = event.target.files && event.target.files.length > 0 ? event.target.files.item(0) : null;
+        if (file) {
+            const img = new Image();
+            img.onload = function() {
+                outputCanvas.width = img.width;
+                outputCanvas.height = img.height;
+                outputContext.drawImage(img, 0, 0, img.width, img.height);
+                statusElement.innerText = "画像が読み込まれました。処理中...";
+                statusElement.className = "alert alert-success text-center";
+                outputCanvas.style.display = 'block';
+                
+                processCvImage(); // 画像処理を実行
+                
+                captureButton.disabled = true; // 画像処理中はカメラ起動不可
+                stopButton.disabled = false;
+                captureButton.innerText = '画像処理中'; // ボタンテキスト変更
+            };
+            img.onerror = function() {
+                statusElement.innerText = "画像の読み込みに失敗しました。";
+                statusElement.className = "alert alert-danger text-center";
+                stopProcessing(); // エラー時は停止処理
+            };
+            img.src = URL.createObjectURL(file);
+        } else {
+            stopProcessing(); // ファイルが選択されなかった場合
+        }
+    }
 
-        // canvasからOpenCVのMatオブジェクトを作成
-        // この時点では、カメラ映像のMatオブジェクトがsrcMatになる
+    // --- OpenCVによる画像処理の共通部分 ---
+    function processCvImage() {
         let srcMat = cv.imread(outputCanvas);
         let dstMat = new cv.Mat();
 
-        // --- ここにコインの認識・計数ロジックを実装します ---
         // 例: グレースケール変換とエッジ検出
         cv.cvtColor(srcMat, dstMat, cv.COLOR_RGBA2GRAY);
-        cv.Canny(dstMat, dstMat, 50, 100, 3, false); // Cannyエッジ検出
+        cv.Canny(dstMat, dstMat, 50, 100, 3, false); 
 
-        // 処理結果をcanvasに表示
         cv.imshow('outputCanvas', dstMat); // 変換された画像をoutputCanvasに表示
 
         // コインの検出・計数処理 (ダミー関数)
@@ -137,9 +206,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // メモリ解放
         srcMat.delete();
         dstMat.delete();
-
-        // 次のフレームを処理
-        animationFrameId = requestAnimationFrame(processVideo);
     }
 
     // --- コイン認識・計数ロジック（ダミー） ---
@@ -148,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 例: 実際には、画像処理アルゴリズムを使ってコインを検出し、金種を識別します
         // 今はダミーの値を返すだけ
         const dummyCounts = {
-            '100': Math.floor(Math.random() * 5), // 0-4枚
+            '100': Math.floor(Math.random() * 5),
             '50': Math.floor(Math.random() * 5),
             '10': Math.floor(Math.random() * 5),
             '5': Math.floor(Math.random() * 5),
