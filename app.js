@@ -13,11 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const appChangesElement = document.getElementById('appChanges'); // アプリケーション変更点表示要素
 
     // アプリケーションのバージョンと変更点
-    const APP_VERSION = "v1.0.8"; // バージョンを更新
-    const APP_CHANGES = "初期画像ロード時の'IndexSizeError'修正 (onloadイベントの強化)。"; // 今回の変更点
+    const APP_VERSION = "v1.0.9"; // バージョンを更新
+    const APP_CHANGES = "初期画像の自動処理停止。ユーザー操作で画像処理開始。"; // 今回の変更点
 
     if (appVersionElement) {
-        appVersionElement.innerText = `Version: ${APP_VERSION}`;
+        appVersionElement.innerText = APP_VERSION; // "Version:" 文言はapp.jsからは削除済み
     }
     if (appChangesElement) {
         appChangesElement.innerText = `変更点: ${APP_CHANGES}`;
@@ -57,23 +57,10 @@ document.addEventListener('DOMContentLoaded', () => {
             stopButton.addEventListener('click', stopProcessing); // 停止ボタンは共通化
             fileInput.addEventListener('change', handleImageUpload);
 
-            // --- 初期画像のロード完了を待ってから処理を開始 ---
-            // hiddenImageForProcessingが完全にロードされてから処理を開始
-            if (hiddenImageForProcessing.complete && hiddenImageForProcessing.naturalWidth > 0) {
-                processInitialImage(hiddenImageForProcessing);
-            } else {
-                hiddenImageForProcessing.onload = () => processInitialImage(hiddenImageForProcessing);
-                hiddenImageForProcessing.onerror = () => {
-                    statusElement.innerText = "初期画像 (" + hiddenImageForProcessing.src + ") のロードに失敗しました。";
-                    statusElement.className = "alert alert-danger text-center";
-                    console.error("初期画像ロードエラー: ", hiddenImageForProcessing.src);
-                    // エラー時はoutputCanvasを非表示にし、ボタン状態をリセット
-                    outputCanvas.style.display = 'none'; 
-                    captureButton.disabled = false;
-                    captureButton.innerText = 'カメラ起動';
-                    stopButton.disabled = true;
-                };
-            }
+            // 初期画像は自動では処理しない。HTMLでimgタグで表示するのみ。
+            // ユーザーが「ファイルを選択」ボタンを使うか、カメラを起動することで処理開始。
+            statusElement.innerText = "画像を選択するか、カメラを起動してください。";
+            statusElement.className = "alert alert-success text-center";
 
         } catch (e) {
             statusElement.innerText = `OpenCV.jsの初期化に失敗しました: ${e.message}`;
@@ -81,38 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("OpenCV.js 初期化エラー:", e);
         }
     };
-
-    // --- 初期画像のロードと処理 ---
-    // imageElement: 処理対象のHTMLImageElement (hiddenImageForProcessing)
-    function processInitialImage(imageElement) {
-        statusElement.innerText = "初期画像を処理中...";
-        statusElement.className = "alert alert-info text-center";
-
-        videoElement.style.display = 'none';
-        
-        // Canvasのサイズを画像に合わせる
-        outputCanvas.width = imageElement.naturalWidth;
-        outputCanvas.height = imageElement.naturalHeight;
-        
-        // 画像をCanvasに描画する（displayMatに描画するための一時的な表示用）
-        outputContext.drawImage(imageElement, 0, 0, outputCanvas.width, outputCanvas.height);
-        outputCanvas.style.display = 'block'; // Canvasを表示
-
-        // Image要素から直接imreadを呼び出す
-        let srcMat = cv.imread(imageElement); 
-        
-        processAndDisplayCoins(srcMat); 
-        srcMat.delete(); 
-
-        statusElement.innerText = "初期画像の処理が完了しました。";
-        statusElement.className = "alert alert-success text-center";
-        
-        captureButton.disabled = false;
-        captureButton.innerText = 'カメラ起動';
-        captureButton.classList.remove('btn-danger');
-        captureButton.classList.add('btn-primary');
-        stopButton.disabled = true;
-    }
 
     // --- カメラの起動/停止の切り替え ---
     async function toggleCamera() {
@@ -143,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
             isCameraRunning = true;
             captureButton.innerText = 'カメラ停止';
             captureButton.classList.remove('btn-primary');
-            captureButton.classList.add('btn-danger'); 
+            captureButton.classList.add('btn-danger'); // 停止ボタンの色に変更
             stopButton.disabled = false;
 
             videoElement.onloadedmetadata = () => {
@@ -166,8 +121,8 @@ document.addEventListener('DOMContentLoaded', () => {
             captureButton.classList.add('btn-primary');
             stopButton.disabled = true;
             videoStream = null;
-            outputCanvas.style.display = 'none'; // エラー時はcanvasを非表示
-            initialImageDisplay.style.display = 'block'; // 初期画像を表示に戻す
+            outputCanvas.style.display = 'none'; 
+            initialImageDisplay.style.display = 'block'; 
         }
     }
 
@@ -256,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleImageUpload(event) {
         stopCamera(); 
         stopProcessingLoop(); 
-        initialImageDisplay.style.display = 'none'; 
+        initialImageDisplay.style.display = 'none'; // 初期画像を非表示
         resetCounts(); 
         outputCanvas.style.display = 'block'; 
 

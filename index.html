@@ -5,18 +5,21 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="app-name" content="カメラで幾ら？">
-    <meta name="version" content="v1.0.8"> <meta name="changes" content="processInitialImageの呼び出し方を修正し、画像のonload内でcv.imreadを呼び出す"> <link rel="stylesheet" href="lib/bootstrap.min.css">
+    <meta name="version" content="v1.0.9"> <meta name="changes" content="初期画像の自動処理停止。ユーザー操作で画像処理開始。"> <link rel="stylesheet" href="lib/bootstrap.min.css">
     <style>
         body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background-color: #f8f9fa; }
         .container { max-width: 600px; width: 100%; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        video, canvas, #initialImageDisplay { display: block; width: 100%; height: auto; border: 1px solid #dee2e6; border-radius: 4px; margin-bottom: 15px; background-color: #000; }
+        /* video, canvas, #initialImageDisplay はJavaScriptで表示/非表示を制御 */
+        video, canvas { display: block; width: 100%; height: auto; border: 1px solid #dee2e6; border-radius: 4px; margin-bottom: 15px; background-color: #000; }
+        #initialImageDisplay { display: block; width: 100%; height: auto; border: 1px solid #dee2e6; border-radius: 4px; margin-bottom: 15px; background-color: #000; }
         .result-box { background-color: #e9ecef; padding: 15px; border-radius: 4px; margin-top: 20px; }
         .result-box h4 { margin-top: 0; color: #495057; }
         .result-box p { font-size: 1.1rem; margin-bottom: 5px; }
         .result-box strong { color: #007bff; }
         #fileInput { margin-bottom: 10px; }
-        #appInfo { font-size: 0.9em; color: #6c757d; margin-top: -15px; margin-bottom: 15px; }
-        #appName { font-weight: bold; }
+        /* アプリ名、バージョン、変更点表示のスタイル調整 */
+        #appInfo { font-size: 0.9em; color: #6c757d; margin-top: -10px; margin-bottom: 10px; line-height: 1.3em; }
+        #appInfo span { display: block; }
     </style>
 </head>
 <body>
@@ -30,7 +33,7 @@
 
         <input type="file" id="fileInput" class="form-control" accept="image/*">
 
-        <img src="./IMG_9013.jpeg" id="initialImageDisplay" style="width: 100%; height: auto;">
+        <img src="./IMG_9013.jpeg" id="initialImageDisplay">
         
         <video id="cameraFeed" playsinline autoplay style="display: none;"></video>
 
