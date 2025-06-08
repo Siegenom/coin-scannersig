@@ -9,6 +9,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('fileInput');
     const initialImageDisplay = document.getElementById('initialImageDisplay'); // 初期画像表示用 img
     const hiddenImageForProcessing = document.getElementById('hiddenImageForProcessing'); // 処理用隠し img
+    const appVersionElement = document.getElementById('appVersion'); // アプリケーションバージョン表示要素
+
+    // アプリケーションのバージョン
+    const APP_VERSION = "v1.0.4";
+    if (appVersionElement) {
+        appVersionElement.innerText = APP_VERSION;
+    }
 
     // 結果表示要素
     const count100 = document.getElementById('count100');
@@ -46,15 +53,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // --- 初期画像の処理を開始 ---
             // initialImageDisplayが完全にロードされてから処理を開始
-            if (initialImageDisplay.complete) {
+            // hiddenImageForProcessing を使って処理
+            if (hiddenImageForProcessing.complete) {
                 processInitialImage();
             } else {
-                initialImageDisplay.onload = processInitialImage;
-                initialImageDisplay.onerror = () => {
-                    statusElement.innerText = "初期画像のロードに失敗しました。";
+                hiddenImageForProcessing.onload = processInitialImage;
+                hiddenImageForProcessing.onerror = () => {
+                    statusElement.innerText = "初期画像 (" + hiddenImageForProcessing.src + ") のロードに失敗しました。";
                     statusElement.className = "alert alert-danger text-center";
-                    outputCanvas.style.display = 'none';
-                    console.error("初期画像ロードエラー: ", initialImageDisplay.src);
+                    console.error("初期画像ロードエラー: ", hiddenImageForProcessing.src);
+                    outputCanvas.style.display = 'none'; // エラー時はcanvasを非表示
                 };
             }
 
@@ -70,14 +78,15 @@ document.addEventListener('DOMContentLoaded', () => {
         statusElement.innerText = "初期画像を処理中...";
         statusElement.className = "alert alert-info text-center";
 
-        // カメラ映像要素とfileInput要素を非表示/無効化
+        // video要素は常に非表示、canvasを表示
         videoElement.style.display = 'none';
-        fileInput.disabled = false; // ファイル入力は常に有効にしておく
+        outputCanvas.style.display = 'block'; 
         
         // initialImageDisplay は表示したまま、hiddenImageForProcessing を使って処理
+        // canvasのサイズを画像に合わせる
         outputCanvas.width = hiddenImageForProcessing.naturalWidth;
         outputCanvas.height = hiddenImageForProcessing.naturalHeight;
-        outputCanvas.style.display = 'block'; // canvasを表示
+        outputContext.drawImage(hiddenImageForProcessing, 0, 0, outputCanvas.width, outputCanvas.height);
 
         let srcMat = cv.imread(hiddenImageForProcessing);
         processAndDisplayCoins(srcMat); // 画像処理と表示
@@ -249,6 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 outputCanvas.width = img.width;
                 outputCanvas.height = img.height;
                 outputContext.drawImage(img, 0, 0, img.width, img.height);
+                
                 statusElement.innerText = "画像が読み込まれました。処理中...";
                 statusElement.className = "alert alert-success text-center";
                 
@@ -318,4 +328,9 @@ document.addEventListener('DOMContentLoaded', () => {
         count5.innerText = counts['5'];
         count1.innerText = counts['1'];
 
-        const total = (counts['100'] * 100) + (counts['
+        const total = (counts['100'] * 100) + (counts['50'] * 50) +
+                      (counts['10'] * 10) + (counts['5'] * 5) +
+                      (counts['1'] * 1);
+        totalAmount.innerText = total;
+    }
+});
