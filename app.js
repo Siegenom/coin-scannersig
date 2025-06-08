@@ -1,19 +1,14 @@
-// app.js (バージョン: v1.1)
-// 変更点: v1.1: 読み込み画像に対する処理切り替えボタン（グレースケール/線画）を追加。元の画像を保持し、何度でも処理可能に。UI表示制御を改善。
-
+// app.js
 document.addEventListener('DOMContentLoaded', () => {
     const statusElement = document.getElementById('status');
-    const appVersionElement = document.getElementById('appVersion');
     const videoElement = document.getElementById('cameraFeed');
-    const uploadedImageElement = document.getElementById('uploadedImage'); // 読み込んだ画像を表示するimg要素
     const outputCanvas = document.getElementById('outputCanvas');
     const outputContext = outputCanvas.getContext('2d');
     const captureButton = document.getElementById('captureButton');
     const stopButton = document.getElementById('stopButton');
     const fileInput = document.getElementById('fileInput');
-    const imageProcessButtonsDiv = document.getElementById('imageProcessButtons');
-    const grayscaleBtn = document.getElementById('grayscaleBtn');
-    const linedrawBtn = document.getElementById('linedrawBtn');
+    const initialImageDisplay = document.getElementById('initialImageDisplay'); // 初期画像表示用 img
+    const hiddenImageForProcessing = document.getElementById('hiddenImageForProcessing'); // 処理用隠し img
 
     // 結果表示要素
     const count100 = document.getElementById('count100');
@@ -25,11 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let videoStream = null; // カメラのストリームを保持
     let animationFrameId = null; // requestAnimationFrame のIDを保持
-    let processingMode = 'none'; // 'camera', 'image_loaded', 'none'
-    let currentLoadedImageMat = null; // 読み込んだ画像の元のcv.Matを保持
-
-    // アプリケーションバージョンの表示
-    appVersionElement.innerText = document.querySelector('meta[name="version"]').content;
+    let isCameraRunning = false; // カメラがアクティブな状態か
+    let isProcessingLoopActive = false; // requestAnimationFrame ループがアクティブか
 
     statusElement.innerText = "OpenCV.jsをロード中...";
     statusElement.className = "alert alert-info text-center";
@@ -41,19 +33,30 @@ document.addEventListener('DOMContentLoaded', () => {
             const testMat = new cv.Mat(10, 10, cv.CV_8UC3);
             testMat.delete();
 
-            statusElement.innerText = "OpenCV.jsが正常にロードされました！ 画像を選択するか、カメラを起動できます。";
+            statusElement.innerText = "OpenCV.jsが正常にロードされました！";
             statusElement.className = "alert alert-success text-center";
             console.log("OpenCV.jsが正常にロードされました！");
 
-            captureButton.disabled = false;
+            captureButton.disabled = false; // カメラ起動ボタンを有効化
             stopButton.disabled = true;
 
-            // イベントリスナー設定
             captureButton.addEventListener('click', toggleCamera);
-            stopButton.addEventListener('click', stopProcessing);
+            stopButton.addEventListener('click', stopProcessing); // 停止ボタンは共通化
             fileInput.addEventListener('change', handleImageUpload);
-            grayscaleBtn.addEventListener('click', () => processLoadedImage('grayscale'));
-            linedrawBtn.addEventListener('click', () => processLoadedImage('linedraw'));
+
+            // --- 初期画像の処理を開始 ---
+            // initialImageDisplayが完全にロードされてから処理を開始
+            if (initialImageDisplay.complete) {
+                processInitialImage();
+            } else {
+                initialImageDisplay.onload = processInitialImage;
+                initialImageDisplay.onerror = () => {
+                    statusElement.innerText = "初期画像のロードに失敗しました。";
+                    statusElement.className = "alert alert-danger text-center";
+                    outputCanvas.style.display = 'none';
+                    console.error("初期画像ロードエラー: ", initialImageDisplay.src);
+                };
+            }
 
         } catch (e) {
             statusElement.innerText = `OpenCV.jsの初期化に失敗しました: ${e.message}`;
@@ -62,89 +65,150 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- カメラの起動と停止を切り替える ---
+    // --- 初期画像のロードと処理 ---
+    function processInitialImage() {
+        statusElement.innerText = "初期画像を処理中...";
+        statusElement.className = "alert alert-info text-center";
+
+        // カメラ映像要素とfileInput要素を非表示/無効化
+        videoElement.style.display = 'none';
+        fileInput.disabled = false; // ファイル入力は常に有効にしておく
+        
+        // initialImageDisplay は表示したまま、hiddenImageForProcessing を使って処理
+        outputCanvas.width = hiddenImageForProcessing.naturalWidth;
+        outputCanvas.height = hiddenImageForProcessing.naturalHeight;
+        outputCanvas.style.display = 'block'; // canvasを表示
+
+        let srcMat = cv.imread(hiddenImageForProcessing);
+        processAndDisplayCoins(srcMat); // 画像処理と表示
+        srcMat.delete(); // メモリ解放
+
+        statusElement.innerText = "初期画像の処理が完了しました。";
+        statusElement.className = "alert alert-success text-center";
+        
+        // ボタン状態をリセットして、カメラやファイル選択ができるようにする
+        captureButton.disabled = false;
+        captureButton.innerText = 'カメラ起動';
+        captureButton.classList.remove('btn-danger');
+        captureButton.classList.add('btn-primary');
+        stopButton.disabled = true; // 初期画像処理後は停止ボタンは無効
+    }
+
+    // --- カメラの起動/停止の切り替え ---
     async function toggleCamera() {
-        if (processingMode === 'camera') {
-            stopProcessing(); // カメラ停止はstopProcessing経由で
-        } else {
-            stopProcessing(); // 他の処理中であれば停止してからカメラ起動
+        if (!isCameraRunning) {
             startCamera();
+        } else {
+            stopCamera();
         }
     }
 
     async function startCamera() {
+        if (isCameraRunning) return;
+
         statusElement.innerText = "カメラを起動中...";
         statusElement.className = "alert alert-warning text-center";
         
-        // UI調整
-        fileInput.disabled = true;
-        captureButton.innerText = 'カメラ停止';
-        stopButton.disabled = false;
-        uploadedImageElement.style.display = 'none'; // アップロード画像非表示
-        videoElement.style.display = 'block'; // video要素表示
-        outputCanvas.style.display = 'block'; // canvas要素表示
-        imageProcessButtonsDiv.style.display = 'none'; // 画像処理ボタン非表示
+        stopProcessingLoop(); // 既存の画像処理ループがあれば停止
+        initialImageDisplay.style.display = 'none'; // 初期画像を非表示
+        outputCanvas.style.display = 'block'; // カメラ映像表示のためにcanvasを表示
 
         try {
             videoStream = await navigator.mediaDevices.getUserMedia({ 
                 video: { facingMode: 'environment' } 
             });
             videoElement.srcObject = videoStream;
+            videoElement.style.display = 'block'; // video要素を表示
             
+            isCameraRunning = true;
+            captureButton.innerText = 'カメラ停止';
+            captureButton.classList.remove('btn-primary');
+            captureButton.classList.add('btn-danger'); // 停止ボタンの色に変更
+            stopButton.disabled = false;
+
             videoElement.onloadedmetadata = () => {
                 outputCanvas.width = videoElement.videoWidth;
                 outputCanvas.height = videoElement.videoHeight;
-                statusElement.innerText = "カメラが起動しました！ 計数準備完了。";
+                statusElement.innerText = "カメラが起動しました！ 計数処理中...";
                 statusElement.className = "alert alert-success text-center";
                 
                 videoElement.play();
-                processingMode = 'camera';
-                requestAnimationFrame(processFrame);
+                startProcessingLoop(processCameraFrame); // カメラ映像処理ループを開始
             };
 
         } catch (err) {
             statusElement.innerText = `カメラへのアクセスに失敗しました: ${err.message}`;
             statusElement.className = "alert alert-danger text-center";
             console.error("カメラアクセスエラー:", err);
-            
-            stopProcessing(); // エラー時は停止処理
-            captureButton.innerText = 'カメラ起動'; // ボタンテキスト戻す
+            isCameraRunning = false;
+            captureButton.innerText = 'カメラ起動';
+            captureButton.classList.remove('btn-danger');
+            captureButton.classList.add('btn-primary');
+            stopButton.disabled = true;
+            videoStream = null;
+            outputCanvas.style.display = 'none'; // エラー時はcanvasを非表示
+            initialImageDisplay.style.display = 'block'; // 初期画像を表示に戻す
         }
     }
 
-    // --- 全ての処理を停止する ---
-    function stopProcessing() {
-        // カメラ停止
+    function stopCamera() {
         if (videoStream) {
             videoStream.getTracks().forEach(track => track.stop());
             videoElement.srcObject = null;
             videoElement.style.display = 'none';
             videoStream = null;
         }
-        cancelAnimationFrame(animationFrameId); // 処理ループ停止 (カメラ用)
-        
-        // 画像関連のリソース解放
-        if (currentLoadedImageMat) {
-            currentLoadedImageMat.delete();
-            currentLoadedImageMat = null;
-        }
-        uploadedImageElement.src = ''; // アップロード画像のURLをクリア
-        uploadedImageElement.style.display = 'none'; // アップロード画像非表示
-
-        processingMode = 'none'; // モードをリセット
-        
-        statusElement.innerText = "処理を停止しました。";
-        statusElement.className = "alert alert-info text-center";
-        resetCounts(); // 計数結果をリセット
-        outputCanvas.style.display = 'none'; // canvasも非表示
-        imageProcessButtonsDiv.style.display = 'none'; // 画像処理ボタンを非表示
-        
-        // UIコントロールをリセット
+        isCameraRunning = false;
         captureButton.innerText = 'カメラ起動';
+        captureButton.classList.remove('btn-danger');
+        captureButton.classList.add('btn-primary');
+        stopButton.disabled = true; // カメラ停止で停止ボタンは常に無効化
+        stopProcessingLoop(); // カメラ停止時に処理ループも停止
+        statusElement.innerText = "カメラが停止しました。";
+        statusElement.className = "alert alert-info text-center";
+        resetCounts();
+        outputCanvas.style.display = 'none'; // カメラ停止時はcanvasも非表示
+        initialImageDisplay.style.display = 'block'; // 初期画像を表示に戻す
+    }
+
+    // --- 汎用的な処理停止 ---
+    function stopProcessing() {
+        if (isCameraRunning) {
+            stopCamera(); // カメラが動いていればカメラ停止
+        } else {
+            // カメラが動いていないが、画像処理ループがアクティブな場合
+            stopProcessingLoop(); 
+            outputCanvas.style.display = 'none'; // canvasも非表示
+            statusElement.innerText = "画像処理を停止しました。";
+            statusElement.className = "alert alert-info text-center";
+            resetCounts();
+        }
+        // 処理停止後は、初期画像を表示し、カメラ起動/ファイル選択可能な状態に戻す
+        initialImageDisplay.style.display = 'block'; 
         captureButton.disabled = false;
+        captureButton.innerText = 'カメラ起動';
+        captureButton.classList.remove('btn-danger');
+        captureButton.classList.add('btn-primary');
         stopButton.disabled = true;
-        fileInput.disabled = false;
-        fileInput.value = ''; // ファイル選択をリセット
+    }
+
+    function startProcessingLoop(processFunction) {
+        if (isProcessingLoopActive) cancelAnimationFrame(animationFrameId); // 既存のループを停止
+        isProcessingLoopActive = true;
+        const loop = () => {
+            if (isProcessingLoopActive) { // ループがアクティブな場合のみ処理
+                processFunction();
+                animationFrameId = requestAnimationFrame(loop);
+            }
+        };
+        animationFrameId = requestAnimationFrame(loop);
+    }
+
+    function stopProcessingLoop() {
+        if (isProcessingLoopActive) {
+            cancelAnimationFrame(animationFrameId);
+            isProcessingLoopActive = false;
+        }
     }
 
     function resetCounts() {
@@ -156,124 +220,92 @@ document.addEventListener('DOMContentLoaded', () => {
         totalAmount.innerText = '0';
     }
 
-    // --- カメラ映像処理ループ ---
-    function processFrame() {
-        if (processingMode === 'camera' && !videoElement.paused && !videoElement.ended && videoStream) {
-            outputContext.drawImage(videoElement, 0, 0, outputCanvas.width, outputCanvas.height);
-            // カメラ映像は直接処理
-            let srcMat = cv.imread(outputCanvas);
-            let dstMat = new cv.Mat();
-
-            cv.cvtColor(srcMat, dstMat, cv.COLOR_RGBA2GRAY);
-            cv.Canny(dstMat, dstMat, 50, 100, 3, false); 
-
-            cv.imshow('outputCanvas', dstMat);
-
-            const counts = detectAndCountCoins(srcMat); // 元のカラー画像（srcMat）を渡す
-            updateDisplay(counts);
-
-            srcMat.delete();
-            dstMat.delete();
+    // --- カメラフレームの処理 ---
+    function processCameraFrame() {
+        if (videoElement.paused || videoElement.ended || !isCameraRunning) {
+            return;
         }
-        animationFrameId = requestAnimationFrame(processFrame);
+
+        outputContext.drawImage(videoElement, 0, 0, outputCanvas.width, outputCanvas.height);
+        let srcMat = cv.imread(outputCanvas);
+        
+        processAndDisplayCoins(srcMat); // コイン処理関数を呼び出す
+        
+        srcMat.delete();
     }
 
-    // --- 画像ファイル読み込み ---
+    // --- 画像ファイルアップロードの処理 ---
     function handleImageUpload(event) {
-        stopProcessing(); // 現在の処理を停止
-        
+        stopCamera(); // 画像アップロード時はカメラを停止
+        stopProcessingLoop(); // 既存のループを停止
+        initialImageDisplay.style.display = 'none'; // 初期画像を非表示
+        resetCounts(); // 結果表示をリセット
+        outputCanvas.style.display = 'block'; // canvasを表示
+
         const file = event.target.files && event.target.files.length > 0 ? event.target.files.item(0) : null;
         if (file) {
             const img = new Image();
             img.onload = function() {
-                uploadedImageElement.src = img.src; // 元画像をimg要素に表示
-                uploadedImageElement.style.display = 'block'; // 元画像を表示
-                outputCanvas.style.display = 'block'; // canvasも表示
-
-                // 元画像をcv.Matとして保持
-                if (currentLoadedImageMat) currentLoadedImageMat.delete(); // 以前のMatがあれば解放
-                currentLoadedImageMat = cv.imread(uploadedImageElement); 
-
-                outputCanvas.width = uploadedImageElement.width;
-                outputCanvas.height = uploadedImageElement.height;
-                
-                statusElement.innerText = "画像が読み込まれました。処理を選択してください。";
+                outputCanvas.width = img.width;
+                outputCanvas.height = img.height;
+                outputContext.drawImage(img, 0, 0, img.width, img.height);
+                statusElement.innerText = "画像が読み込まれました。処理中...";
                 statusElement.className = "alert alert-success text-center";
                 
-                processingMode = 'image_loaded'; // 画像ロードモード
-                imageProcessButtonsDiv.style.display = 'grid'; // 画像処理ボタンを表示
-                captureButton.disabled = true; // 画像処理中はカメラ起動不可
-                stopButton.disabled = false;
-                captureButton.innerText = '画像処理中'; // ボタンテキスト変更
-                
-                // 初回はデフォルトでグレースケール処理を実行
-                processLoadedImage('grayscale'); 
+                let srcMat = cv.imread(outputCanvas);
+                processAndDisplayCoins(srcMat); // 画像処理と表示
+                srcMat.delete(); // メモリ解放
+
+                statusElement.innerText = "画像処理が完了しました！";
+                captureButton.disabled = false; // カメラ起動を再度有効化
+                captureButton.innerText = 'カメラ起動';
+                stopButton.disabled = false; // 停止ボタンは有効
             };
             img.onerror = function() {
                 statusElement.innerText = "画像の読み込みに失敗しました。";
                 statusElement.className = "alert alert-danger text-center";
-                stopProcessing(); // エラー時は停止処理
+                console.error("画像読み込みエラー:", this.src);
+                outputCanvas.style.display = 'none'; // エラー時はcanvasを非表示
+                captureButton.disabled = false;
+                captureButton.innerText = 'カメラ起動';
+                stopButton.disabled = true;
+                initialImageDisplay.style.display = 'block'; // 初期画像を表示に戻す
             };
             img.src = URL.createObjectURL(file);
         } else {
-            stopProcessing(); // ファイルが選択されなかった場合
+            statusElement.innerText = "ファイルが選択されていません。";
+            statusElement.className = "alert alert-warning text-center";
+            outputCanvas.style.display = 'none';
+            initialImageDisplay.style.display = 'block'; // 初期画像を表示に戻す
         }
     }
 
-    // --- 読み込んだ画像に対する処理を実行 ---
-    function processLoadedImage(type) {
-        if (!currentLoadedImageMat) {
-            statusElement.innerText = "処理する画像がありません。";
-            statusElement.className = "alert alert-warning text-center";
-            return;
-        }
-
+    // --- コイン認識・計数および表示の共通ロジック ---
+    function processAndDisplayCoins(srcMat) {
         let dstMat = new cv.Mat();
-        
-        if (type === 'grayscale') {
-            cv.cvtColor(currentLoadedImageMat, dstMat, cv.COLOR_RGBA2GRAY);
-            statusElement.innerText = "画像をグレースケール化しました。";
-        } else if (type === 'linedraw') {
-            // 線画化のロジック (提供されたものを流用)
-            const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
-            const imgGray = new cv.Mat();
-            cv.cvtColor(currentLoadedImageMat, imgGray, cv.COLOR_RGBA2GRAY);
-            const imgDilated = new cv.Mat();
-            cv.dilate(imgGray, imgDilated, kernel, new cv.Point(-1, -1), 1); // pointは-1,-1でOK
-            const imgDiff = new cv.Mat();
-            cv.absdiff(imgDilated, imgGray, imgDiff);
-            cv.bitwise_not(imgDiff, dstMat); // 結果をdstMatへ
-            
-            imgGray.delete();
-            imgDilated.delete();
-            imgDiff.delete();
-            kernel.delete();
 
-            statusElement.innerText = "画像を線画化しました。";
-        } else {
-            // タイプが指定されない場合、元の画像をそのまま表示
-            currentLoadedImageMat.copyTo(dstMat);
-            statusElement.innerText = "画像を表示中...";
-        }
+        // 例: グレースケール変換とCannyエッジ検出
+        cv.cvtColor(srcMat, dstMat, cv.COLOR_RGBA2GRAY);
+        cv.Canny(dstMat, dstMat, 50, 100, 3, false); // Cannyエッジ検出
 
-        cv.imshow('outputCanvas', dstMat);
-        
-        // 検出・計数処理 (ダミー関数) - 元画像に対して行う
-        const counts = detectAndCountCoins(currentLoadedImageMat); 
+        // 処理結果をcanvasに表示
+        cv.imshow('outputCanvas', dstMat); 
+
+        // コインの検出・計数処理 (ダミー関数)
+        const counts = detectAndCountCoins(srcMat); // 元のカラー画像（srcMat）を渡す
         updateDisplay(counts);
 
-        dstMat.delete(); // 処理結果のMatを解放
+        dstMat.delete();
     }
 
     // --- コイン認識・計数ロジック（ダミー） ---
-    // ここに金種判別と枚数計数の複雑なロジックを実装します
     function detectAndCountCoins(imageMat) {
         const dummyCounts = {
             '100': Math.floor(Math.random() * 5),
             '50': Math.floor(Math.random() * 5),
             '10': Math.floor(Math.random() * 5),
             '5': Math.floor(Math.random() * 5),
-            '1': Math.random() < 0.5 ? 0 : 1, // 1円玉はたまに0
+            '1': Math.floor(Math.random() * 5),
         };
         return dummyCounts;
     }
@@ -286,9 +318,4 @@ document.addEventListener('DOMContentLoaded', () => {
         count5.innerText = counts['5'];
         count1.innerText = counts['1'];
 
-        const total = (counts['100'] * 100) + (counts['50'] * 50) +
-                      (counts['10'] * 10) + (counts['5'] * 5) +
-                      (counts['1'] * 1);
-        totalAmount.innerText = total;
-    }
-});
+        const total = (counts['100'] * 100) + (counts['
