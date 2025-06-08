@@ -10,11 +10,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const initialImageDisplay = document.getElementById('initialImageDisplay'); // 初期画像表示用 img
     const hiddenImageForProcessing = document.getElementById('hiddenImageForProcessing'); // 処理用隠し img
     const appVersionElement = document.getElementById('appVersion'); // アプリケーションバージョン表示要素
+    const appChangesElement = document.getElementById('appChanges'); // アプリケーション変更点表示要素
 
-    // アプリケーションのバージョン
-    const APP_VERSION = "v1.0.4";
+    // アプリケーションのバージョンと変更点
+    const APP_VERSION = "v1.0.6"; // バージョンを更新
+    const APP_CHANGES = "バージョン情報とアプリ名・変更点のHTML埋め込み。publish.shとの連携。"; // 今回の変更点
+
     if (appVersionElement) {
-        appVersionElement.innerText = APP_VERSION;
+        appVersionElement.innerText = `Version: ${APP_VERSION}`;
+    }
+    if (appChangesElement) {
+        appChangesElement.innerText = `変更点: ${APP_CHANGES}`;
     }
 
     // 結果表示要素
@@ -52,8 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
             fileInput.addEventListener('change', handleImageUpload);
 
             // --- 初期画像の処理を開始 ---
-            // initialImageDisplayが完全にロードされてから処理を開始
-            // hiddenImageForProcessing を使って処理
             if (hiddenImageForProcessing.complete) {
                 processInitialImage();
             } else {
@@ -62,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     statusElement.innerText = "初期画像 (" + hiddenImageForProcessing.src + ") のロードに失敗しました。";
                     statusElement.className = "alert alert-danger text-center";
                     console.error("初期画像ロードエラー: ", hiddenImageForProcessing.src);
-                    outputCanvas.style.display = 'none'; // エラー時はcanvasを非表示
+                    outputCanvas.style.display = 'none';
                 };
             }
 
@@ -78,29 +82,25 @@ document.addEventListener('DOMContentLoaded', () => {
         statusElement.innerText = "初期画像を処理中...";
         statusElement.className = "alert alert-info text-center";
 
-        // video要素は常に非表示、canvasを表示
         videoElement.style.display = 'none';
-        outputCanvas.style.display = 'block'; 
         
-        // initialImageDisplay は表示したまま、hiddenImageForProcessing を使って処理
-        // canvasのサイズを画像に合わせる
         outputCanvas.width = hiddenImageForProcessing.naturalWidth;
         outputCanvas.height = hiddenImageForProcessing.naturalHeight;
         outputContext.drawImage(hiddenImageForProcessing, 0, 0, outputCanvas.width, outputCanvas.height);
+        outputCanvas.style.display = 'block'; 
 
-        let srcMat = cv.imread(hiddenImageForProcessing);
-        processAndDisplayCoins(srcMat); // 画像処理と表示
-        srcMat.delete(); // メモリ解放
+        let srcMat = cv.imread(outputCanvas);
+        processAndDisplayCoins(srcMat); 
+        srcMat.delete(); 
 
         statusElement.innerText = "初期画像の処理が完了しました。";
         statusElement.className = "alert alert-success text-center";
         
-        // ボタン状態をリセットして、カメラやファイル選択ができるようにする
         captureButton.disabled = false;
         captureButton.innerText = 'カメラ起動';
         captureButton.classList.remove('btn-danger');
         captureButton.classList.add('btn-primary');
-        stopButton.disabled = true; // 初期画像処理後は停止ボタンは無効
+        stopButton.disabled = true;
     }
 
     // --- カメラの起動/停止の切り替え ---
@@ -118,21 +118,21 @@ document.addEventListener('DOMContentLoaded', () => {
         statusElement.innerText = "カメラを起動中...";
         statusElement.className = "alert alert-warning text-center";
         
-        stopProcessingLoop(); // 既存の画像処理ループがあれば停止
-        initialImageDisplay.style.display = 'none'; // 初期画像を非表示
-        outputCanvas.style.display = 'block'; // カメラ映像表示のためにcanvasを表示
+        stopProcessingLoop(); 
+        initialImageDisplay.style.display = 'none'; 
+        outputCanvas.style.display = 'block'; 
 
         try {
             videoStream = await navigator.mediaDevices.getUserMedia({ 
                 video: { facingMode: 'environment' } 
             });
             videoElement.srcObject = videoStream;
-            videoElement.style.display = 'block'; // video要素を表示
+            videoElement.style.display = 'block'; 
             
             isCameraRunning = true;
             captureButton.innerText = 'カメラ停止';
             captureButton.classList.remove('btn-primary');
-            captureButton.classList.add('btn-danger'); // 停止ボタンの色に変更
+            captureButton.classList.add('btn-danger'); 
             stopButton.disabled = false;
 
             videoElement.onloadedmetadata = () => {
@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusElement.className = "alert alert-success text-center";
                 
                 videoElement.play();
-                startProcessingLoop(processCameraFrame); // カメラ映像処理ループを開始
+                startProcessingLoop(processCameraFrame); 
             };
 
         } catch (err) {
@@ -155,8 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
             captureButton.classList.add('btn-primary');
             stopButton.disabled = true;
             videoStream = null;
-            outputCanvas.style.display = 'none'; // エラー時はcanvasを非表示
-            initialImageDisplay.style.display = 'block'; // 初期画像を表示に戻す
+            outputCanvas.style.display = 'none'; 
+            initialImageDisplay.style.display = 'block'; 
         }
     }
 
@@ -171,28 +171,26 @@ document.addEventListener('DOMContentLoaded', () => {
         captureButton.innerText = 'カメラ起動';
         captureButton.classList.remove('btn-danger');
         captureButton.classList.add('btn-primary');
-        stopButton.disabled = true; // カメラ停止で停止ボタンは常に無効化
-        stopProcessingLoop(); // カメラ停止時に処理ループも停止
+        stopButton.disabled = true; 
+        stopProcessingLoop(); 
         statusElement.innerText = "カメラが停止しました。";
         statusElement.className = "alert alert-info text-center";
         resetCounts();
-        outputCanvas.style.display = 'none'; // カメラ停止時はcanvasも非表示
-        initialImageDisplay.style.display = 'block'; // 初期画像を表示に戻す
+        outputCanvas.style.display = 'none'; 
+        initialImageDisplay.style.display = 'block'; 
     }
 
     // --- 汎用的な処理停止 ---
     function stopProcessing() {
         if (isCameraRunning) {
-            stopCamera(); // カメラが動いていればカメラ停止
+            stopCamera(); 
         } else {
-            // カメラが動いていないが、画像処理ループがアクティブな場合
             stopProcessingLoop(); 
-            outputCanvas.style.display = 'none'; // canvasも非表示
+            outputCanvas.style.display = 'none'; 
             statusElement.innerText = "画像処理を停止しました。";
             statusElement.className = "alert alert-info text-center";
             resetCounts();
         }
-        // 処理停止後は、初期画像を表示し、カメラ起動/ファイル選択可能な状態に戻す
         initialImageDisplay.style.display = 'block'; 
         captureButton.disabled = false;
         captureButton.innerText = 'カメラ起動';
@@ -202,10 +200,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startProcessingLoop(processFunction) {
-        if (isProcessingLoopActive) cancelAnimationFrame(animationFrameId); // 既存のループを停止
+        if (isProcessingLoopActive) cancelAnimationFrame(animationFrameId); 
         isProcessingLoopActive = true;
         const loop = () => {
-            if (isProcessingLoopActive) { // ループがアクティブな場合のみ処理
+            if (isProcessingLoopActive) { 
                 processFunction();
                 animationFrameId = requestAnimationFrame(loop);
             }
@@ -238,18 +236,18 @@ document.addEventListener('DOMContentLoaded', () => {
         outputContext.drawImage(videoElement, 0, 0, outputCanvas.width, outputCanvas.height);
         let srcMat = cv.imread(outputCanvas);
         
-        processAndDisplayCoins(srcMat); // コイン処理関数を呼び出す
+        processAndDisplayCoins(srcMat); 
         
         srcMat.delete();
     }
 
     // --- 画像ファイルアップロードの処理 ---
     function handleImageUpload(event) {
-        stopCamera(); // 画像アップロード時はカメラを停止
-        stopProcessingLoop(); // 既存のループを停止
-        initialImageDisplay.style.display = 'none'; // 初期画像を非表示
-        resetCounts(); // 結果表示をリセット
-        outputCanvas.style.display = 'block'; // canvasを表示
+        stopCamera(); 
+        stopProcessingLoop(); 
+        initialImageDisplay.style.display = 'none'; 
+        resetCounts(); 
+        outputCanvas.style.display = 'block'; 
 
         const file = event.target.files && event.target.files.length > 0 ? event.target.files.item(0) : null;
         if (file) {
@@ -263,30 +261,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusElement.className = "alert alert-success text-center";
                 
                 let srcMat = cv.imread(outputCanvas);
-                processAndDisplayCoins(srcMat); // 画像処理と表示
-                srcMat.delete(); // メモリ解放
+                processAndDisplayCoins(srcMat); 
+                srcMat.delete(); 
 
                 statusElement.innerText = "画像処理が完了しました！";
-                captureButton.disabled = false; // カメラ起動を再度有効化
+                captureButton.disabled = false; 
                 captureButton.innerText = 'カメラ起動';
-                stopButton.disabled = false; // 停止ボタンは有効
+                stopButton.disabled = false; 
             };
             img.onerror = function() {
                 statusElement.innerText = "画像の読み込みに失敗しました。";
                 statusElement.className = "alert alert-danger text-center";
                 console.error("画像読み込みエラー:", this.src);
-                outputCanvas.style.display = 'none'; // エラー時はcanvasを非表示
+                outputCanvas.style.display = 'none'; 
                 captureButton.disabled = false;
                 captureButton.innerText = 'カメラ起動';
                 stopButton.disabled = true;
-                initialImageDisplay.style.display = 'block'; // 初期画像を表示に戻す
+                initialImageDisplay.style.display = 'block'; 
             };
             img.src = URL.createObjectURL(file);
         } else {
             statusElement.innerText = "ファイルが選択されていません。";
             statusElement.className = "alert alert-warning text-center";
             outputCanvas.style.display = 'none';
-            initialImageDisplay.style.display = 'block'; // 初期画像を表示に戻す
+            initialImageDisplay.style.display = 'block'; 
         }
     }
 
@@ -294,15 +292,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function processAndDisplayCoins(srcMat) {
         let dstMat = new cv.Mat();
 
-        // 例: グレースケール変換とCannyエッジ検出
         cv.cvtColor(srcMat, dstMat, cv.COLOR_RGBA2GRAY);
-        cv.Canny(dstMat, dstMat, 50, 100, 3, false); // Cannyエッジ検出
+        cv.Canny(dstMat, dstMat, 50, 100, 3, false); 
 
-        // 処理結果をcanvasに表示
         cv.imshow('outputCanvas', dstMat); 
 
-        // コインの検出・計数処理 (ダミー関数)
-        const counts = detectAndCountCoins(srcMat); // 元のカラー画像（srcMat）を渡す
+        const counts = detectAndCountCoins(srcMat); 
         updateDisplay(counts);
 
         dstMat.delete();
