@@ -13,6 +13,7 @@
         .result-box h4 { margin-top: 0; color: #495057; }
         .result-box p { font-size: 1.1rem; margin-bottom: 5px; }
         .result-box strong { color: #007bff; }
+        #fileInput { margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -20,12 +21,14 @@
         <h1 class="text-center mb-4">カメラで幾ら？</h1>
         <p id="status" class="alert alert-info text-center">OpenCV.jsをロード中...</p>
 
-        <video id="cameraFeed" playsinline autoplay></video>
+        <input type="file" id="fileInput" class="form-control" accept="image/*">
+
+        <video id="cameraFeed" playsinline autoplay style="display: none;"></video>
 
         <canvas id="outputCanvas"></canvas>
 
         <div class="d-grid gap-2">
-            <button id="captureButton" class="btn btn-primary btn-lg" disabled>計数開始</button>
+            <button id="captureButton" class="btn btn-primary btn-lg" disabled>カメラ起動</button>
             <button id="stopButton" class="btn btn-secondary btn-lg" disabled>停止</button>
         </div>
 
