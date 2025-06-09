@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="app-name" content="カメラで幾ら？">
-    <meta name="version" content="v1.0.10"> <meta name="changes" content="初期画像の相対パス維持。処理中UI改善。カメラ領域統一。"> <link rel="stylesheet" href="lib/bootstrap.min.css">
+    <meta name="version" content="v1.0.11"> <meta name="changes" content="処理中ステータス表示強化とアニメーション。カメラエラー詳細化。"> <link rel="stylesheet" href="lib/bootstrap.min.css">
     <style>
         body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background-color: #f8f9fa; }
         .container { max-width: 600px; width: 100%; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
@@ -31,27 +31,19 @@
         #appInfo { font-size: 0.9em; color: #6c757d; margin-top: -10px; margin-bottom: 10px; line-height: 1.3em; }
         #appInfo span { display: block; }
         /* 処理中はボタンやファイル選択を無効化するスタイル */
-        .processing-indicator::before {
-            content: "";
-            display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(255, 255, 255, 0.7);
-            z-index: 10;
-            cursor: not-allowed;
+        .processing-indicator {
+            position: relative; /* スピナーを配置するための基準 */
+        }
+        .processing-indicator > * {
+            pointer-events: none; /* 下の要素のクリックを無効化 */
+            opacity: 0.7; /* 処理中であることを示す */
         }
         .processing-indicator .spinner-border {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 11;
-        }
-        .relative-container {
-            position: relative;
+            z-index: 10; /* 他の要素より手前に表示 */
         }
     </style>
 </head>
@@ -66,20 +58,22 @@
 
         <div class="relative-container" id="fileInputContainer">
             <input type="file" id="fileInput" class="form-control" accept="image/*">
-            <div id="loadingSpinnerFile" class="spinner-border text-primary" role="status" style="display:none;">
-                <span class="visually-hidden">Loading...</span>
-            </div>
         </div>
 
         <img src="./IMG_9013.jpeg" id="initialImageDisplay">
         
+        <video id="cameraFeed" playsinline autoplay style="display: none;"></video>
+
         <canvas id="outputCanvas" style="display: none;"></canvas>
 
         <img id="hiddenImageForProcessing" src="./IMG_9013.jpeg" style="display: none;">
 
-        <div class="d-grid gap-2">
+        <div class="d-grid gap-2 relative-container" id="controlButtonsContainer">
             <button id="captureButton" class="btn btn-primary btn-lg" disabled>カメラ起動</button>
             <button id="stopButton" class="btn btn-secondary btn-lg" disabled>停止</button>
+            <div id="loadingSpinnerButton" class="spinner-border text-light" role="status" style="display:none;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
         </div>
 
         <div class="result-box mt-4">
