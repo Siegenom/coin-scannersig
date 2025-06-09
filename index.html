@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>カメラで幾ら？ (Coin Camera Counter)</title>
+    <title>カメラで幾ら？ (画像モード)</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="app-name" content="カメラで幾ら？">
-    <meta name="version" content="v1.0.11"> <meta name="changes" content="処理中ステータス表示強化とアニメーション。カメラエラー詳細化。"> ```    <style>
+    <meta name="version" content="v1.2.0"> <meta name="changes" content="カメラ機能サスペンド。画像処理機能に特化。"> <link rel="stylesheet" href="lib/bootstrap.min.css">
+    <style>
         body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background-color: #f8f9fa; }
         .container { max-width: 600px; width: 100%; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        /* video要素は常に非表示 */
-        video { display: none !important; } 
-        /* canvasと初期画像表示はJSで制御 */
+        /* video要素は削除 */
         canvas, #initialImageDisplay { 
             display: block; 
             width: 100%; 
@@ -35,7 +34,7 @@
         }
         .processing-indicator > * {
             pointer-events: none; /* 下の要素のクリックを無効化 */
-            opacity: 0.7; /* 処理中であることを示 */
+            opacity: 0.7; /* 処理中であることを示す */
         }
         .processing-indicator .spinner-border {
             position: absolute;
@@ -53,8 +52,8 @@
     <div class="container mt-5">
         <h1 class="text-center mb-0" id="mainAppTitle">カメラで幾ら？</h1>
         <p id="appInfo" class="text-center">
-            <span id="appVersion"></span><br>
-            <span id="appChanges"></span>
+            <span id="appVersionDisplay"></span><br>
+            <span id="appChangesDisplay"></span>
         </p>
         <p id="status" class="alert alert-info text-center">OpenCV.jsをロード中...</p>
 
@@ -64,16 +63,12 @@
 
         <img src="./IMG_9013.jpeg" id="initialImageDisplay">
         
-        <video id="cameraFeed" playsinline autoplay style="display: none;"></video>
-
         <canvas id="outputCanvas" style="display: none;"></canvas>
 
         <img id="hiddenImageForProcessing" src="./IMG_9013.jpeg" style="display: none;">
 
         <div class="d-grid gap-2 relative-container" id="controlButtonsContainer">
-            <button id="captureButton" class="btn btn-primary btn-lg" disabled>カメラ起動</button>
-            <button id="stopButton" class="btn btn-secondary btn-lg" disabled>停止</button>
-            <div id="loadingSpinnerButton" class="spinner-border text-light" role="status" style="display:none;">
+            <button id="stopButton" class="btn btn-secondary btn-lg" disabled>処理停止</button> <div id="loadingSpinnerButton" class="spinner-border text-light" role="status" style="display:none;">
                 <span class="visually-hidden">Loading...</span>
             </div>
         </div>
