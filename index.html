@@ -7,11 +7,10 @@
     <meta name="app-name" content="カメラで幾ら？">
     <link rel="stylesheet" href="lib/bootstrap.min.css">
     <style>
+        /* 既存のスタイル */
         body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background-color: #f8f9fa; }
         .container { max-width: 600px; width: 100%; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        /* video要素は常に非表示 */
         video { display: none !important; }
-        /* canvasと初期画像表示はJSで制御 */
         canvas, #initialImageDisplay {
             display: block;
             width: 100%;
@@ -20,36 +19,48 @@
             border-radius: 4px;
             margin-bottom: 15px;
             background-color: #000;
-            cursor: pointer; /* タップ可能であることを示す */
+            cursor: pointer;
         }
         .result-box { background-color: #e9ecef; padding: 15px; border-radius: 4px; margin-top: 20px; }
         .result-box h4 { margin-top: 0; color: #495057; }
         .result-box p { font-size: 1.1rem; margin-bottom: 5px; }
         .result-box strong { color: #007bff; }
         #fileInput { margin-bottom: 10px; }
-        /* アプリ名、バージョン、変更点表示のスタイル調整 */
-        #appInfo { font-size: 0.9em; color: #6c757d; margin-top: -10px; margin-bottom: 10px; line-height: 1.3em; }
-        #appInfo span { display: block; }
-        /* 処理中はボタンやファイル選択を無効化するスタイル */
+    
+        /* --- ここから修正/追加 --- */
+        #mainAppTitle {
+            margin-bottom: 5px; /* タイトル下のマージンを調整 */
+        }
+        #appInfo {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 0px; /* 以前の-10pxを0pxに調整 */
+            margin-bottom: 15px; /* 下のマージンを少し増やす */
+            line-height: 1.3em;
+        }
+        #appInfo span {
+            display: block;
+        }
+        /* --- ここまで修正/追加 --- */
+    
         .processing-indicator {
-            position: relative; /* スピナーを配置するための基準 */
+            position: relative;
         }
         .processing-indicator > * {
-            pointer-events: none; /* 下の要素のクリックを無効化 */
-            opacity: 0.7; /* 処理中であることを示す */
+            pointer-events: none;
+            opacity: 0.7;
         }
         .processing-indicator .spinner-border {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 10; /* 他の要素より手前に表示 */
+            z-index: 10;
         }
         .relative-container {
             position: relative;
         }
-    </style>
-</head>
+    </style></head>
 <body>
     <div class="container mt-5">
         <h1 class="text-center mb-0" id="mainAppTitle">カメラで幾ら？</h1>

@@ -1,10 +1,11 @@
 {
-    "appVersion": "v0.1.0",
-    "appChanges": "新規にプロジェクト管理を導入し、各ファイルのバージョンを吸収",
-    "fileVersions": {
-      "index.html": "v1.0.12",  
-      "app.js": "v1.4.0",   
-      "publish.sh": "v0.1.0",
-      "version.json": "v0.1.0"
-    }
-  }
+  "appVersion": "v0.1.0",
+  "appChanges": "新規にプロジェクト管理を導入し、各ファイルのバージョンを吸収 (Commit: 1232f43)",
+  "fileVersions": {
+    "index.html": "v1.0.12",
+    "app.js": "v1.4.0",
+    "publish.sh": "v0.1.0",
+    "version.json": "v0.1.0"
+  },
+  "currentCommitHash": "1232f43"
+}
