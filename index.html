@@ -5,11 +5,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="app-name" content="カメラで幾ら？">
-    <meta name="version" content="v1.2.0"> <meta name="changes" content="カメラ機能サスペンド。画像処理機能に特化。"> <link rel="stylesheet" href="lib/bootstrap.min.css">
+    <meta name="version" content="v1.2.1"> <meta name="changes" content="UI要素の参照エラー修正。"> <link rel="stylesheet" href="lib/bootstrap.min.css">
     <style>
         body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background-color: #f8f9fa; }
         .container { max-width: 600px; width: 100%; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        /* video要素は削除 */
+        /* video要素は常に非表示 */
+        video { display: none !important; } 
+        /* canvasと初期画像表示はJSで制御 */
         canvas, #initialImageDisplay { 
             display: block; 
             width: 100%; 
@@ -68,7 +70,8 @@
         <img id="hiddenImageForProcessing" src="./IMG_9013.jpeg" style="display: none;">
 
         <div class="d-grid gap-2 relative-container" id="controlButtonsContainer">
-            <button id="stopButton" class="btn btn-secondary btn-lg" disabled>処理停止</button> <div id="loadingSpinnerButton" class="spinner-border text-light" role="status" style="display:none;">
+            <button id="stopButton" class="btn btn-secondary btn-lg" disabled>処理停止</button> 
+            <div id="loadingSpinnerButton" class="spinner-border text-light" role="status" style="display:none;">
                 <span class="visually-hidden">Loading...</span>
             </div>
         </div>
@@ -88,9 +91,9 @@
     <script src="lib/bootstrap.min.js"></script>
     <script src="lib/lodash.min.js"></script>
     
-    <script src="lib/opencv.js" type="text/javascript"></script>
+    <script src="lib/opencv.js" type="text="text/javascript"></script>
 
-    <script src="app.js" type="text/javascript"></script>
+    <script src="app.js" type="text="text/javascript"></script>
 
 </body>
 </html>
