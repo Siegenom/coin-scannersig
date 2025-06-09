@@ -1,0 +1,8 @@
+{
+    "appVersion": "v0.1.0",
+    "appChanges": "全体のバージョン管理を導入し、基本機能実装",
+    "fileVersions": {
+      "index.html": "v0.1.0",
+      "app.js": "v0.1.0"
+    }
+  }
