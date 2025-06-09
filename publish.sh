@@ -1,9 +1,6 @@
 #!/bin/bash
 
 # --- HTMLからメタ情報を自動取得 ---
-# jqがインストールされていない場合はエラーになる可能性があるが、Git Bash標準にはないため、
-# grepとcutで代替する。
-
 # アプリケーション名
 APP_NAME=$(grep -o 'meta name="app-name" content="[^"]*"' index.html | head -n 1 | cut -d'"' -f4)
 # バージョン
@@ -13,7 +10,8 @@ CHANGES_STRING=$(grep -o 'meta name="changes" content="[^"]*"' index.html | head
 
 # メタ情報が取得できたか確認
 if [ -z "$APP_NAME" ] || [ -z "$VERSION_STRING" ] || [ -z "$CHANGES_STRING" ]; then
-  echo "エラー: index.htmlからアプリケーションのメタ情報が取得できませんでした。HTMLの<meta>タグを確認してください。"
+  echo -e "\033[0;31mエラー: index.htmlからアプリケーションのメタ情報が取得できませんでした。\033[0m" # 赤色出力
+  echo -e "\033[0;31mHTMLの<meta>タグ（name='app-name', name='version', name='changes'）を確認してください。\033[0m" # 赤色出力
   exit 1
 fi
 
@@ -24,15 +22,28 @@ COMMIT_MESSAGE="feat: $APP_NAME 更新 ($VERSION_STRING) - $CHANGES_STRING"
 echo "--- Git: 全ての変更をステージング中... ---"
 git add .
 
+# ステージングされた変更を表示 (赤色で)
+echo -e "\033[0;31m--- 以下の変更がステージングされました: --- \033[0m" # 赤色出力
+git status --short # 簡潔な形式で表示
+echo -e "\033[0m" # 色をリセット
+
 echo "--- Git: 変更をコミット中... ---"
+# コミットの成否をチェック
 if git commit -m "$COMMIT_MESSAGE"; then
-  echo "--- Git: コミット完了: '$COMMIT_MESSAGE' ---"
+  echo -e "\033[0;32m--- Git: コミット完了: '$COMMIT_MESSAGE' ---\033[0m" # 緑色出力
 else
-  echo "--- Git: コミットする変更がありませんでした、またはコミットに失敗しました。 ---"
+  echo -e "\033[0;31m--- Git: コミットする変更がありませんでした。またはコミットに失敗しました。 ---\033[0m" # 赤色出力
+  # コミットする変更がない場合も、プッシュは試行（リモートが最新でない可能性も考慮）
 fi
 
 echo "--- Git: GitHubにプッシュ中... ---"
-git push origin main
+# プッシュの成否をチェック
+if git push origin main; then
+  echo -e "\033[0;32m--- Git: プッシュ完了 ---\033[0m" # 緑色出力
+  echo "GitHub Pagesの更新には数分かかる場合があります。ブラウザのキャッシュクリアが必要な場合があります。"
+else
+  echo -e "\033[0;31m--- Git: プッシュに失敗しました。 ---\033[0m" # 赤色出力
+  echo -e "\033[0;31mネットワーク接続やGitHubの認証情報を確認してください。\033[0m" # 赤色出力
+fi
 
-echo "--- Git: プッシュ完了 ---"
-echo "GitHub Pagesの更新には数分かかる場合があります。ブラウザのキャッシュクリアが必要な場合があります。"
+echo -e "\033[0m" # 確実に色をリセット
