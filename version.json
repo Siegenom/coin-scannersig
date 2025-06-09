@@ -1,8 +1,10 @@
 {
     "appVersion": "v0.1.0",
-    "appChanges": "全体のバージョン管理を導入し、基本機能実装",
+    "appChanges": "新規にプロジェクト管理を導入し、各ファイルのバージョンを吸収",
     "fileVersions": {
-      "index.html": "v0.1.0",
-      "app.js": "v0.1.0"
+      "index.html": "v1.0.12",  
+      "app.js": "v1.4.0",   
+      "publish.sh": "v0.1.0",
+      "version.json": "v0.1.0"
     }
   }
