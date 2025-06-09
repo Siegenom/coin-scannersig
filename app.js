@@ -94,10 +94,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const versionInfo = await response.json();
 
             if (appVersionDisplay) {
-                appVersionDisplay.innerText = `バージョン: ${versionInfo.appVersion}`;
+                appVersionDisplay.innerText = versionInfo.appVersion;
             }
             if (appChangesDisplay) {
-                appChangesDisplay.innerText = `${versionInfo.appChanges}`;
+                appChangesDisplay.innerText = `変更点: ${versionInfo.appChanges}`;
             }
             console.log("バージョン情報がロードされました:", versionInfo);
             return versionInfo;
