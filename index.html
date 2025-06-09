@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="app-name" content="カメラで幾ら？">
-    <meta name="version" content="v1.0.11"> <meta name="changes" content="処理中ステータス表示強化とアニメーション。カメラエラー詳細化。"> <link rel="stylesheet" href="lib/bootstrap.min.css">
+    <meta name="version" content="v1.0.11"> <meta name="changes" content="Gitログ表示強化。画像処理中UX改善。停止ボタン機能拡張。"> <link rel="stylesheet" href="lib/bootstrap.min.css">
     <style>
         body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background-color: #f8f9fa; }
         .container { max-width: 600px; width: 100%; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
@@ -44,6 +44,9 @@
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 10; /* 他の要素より手前に表示 */
+        }
+        .relative-container {
+            position: relative;
         }
     </style>
 </head>

@@ -11,13 +11,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const hiddenImageForProcessing = document.getElementById('hiddenImageForProcessing'); // 処理用隠し img
     const appVersionElement = document.getElementById('appVersion'); // アプリケーションバージョン表示要素
     const appChangesElement = document.getElementById('appChanges'); // アプリケーション変更点表示要素
-    const fileInputContainer = document.getElementById('fileInputContainer'); // ファイル入力コンテナ
-    const loadingSpinnerButton = document.getElementById('loadingSpinnerButton'); // ボタンのスピナー
-    const controlButtonsContainer = document.getElementById('controlButtonsContainer'); // ボタンコンテナ
 
     // アプリケーションのバージョンと変更点
     const APP_VERSION = "v1.0.11"; // バージョンを更新
-    const APP_CHANGES = "処理中ステータス表示強化とアニメーション。カメラエラー詳細化。"; // 今回の変更点
+    const APP_CHANGES = "Gitログ表示強化。画像処理中UX改善。停止ボタン機能拡張。"; // 今回の変更点
 
     if (appVersionElement) {
         appVersionElement.innerText = APP_VERSION;
@@ -37,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let videoStream = null;
     let animationFrameId = null;
     let isCameraRunning = false;
-    let isProcessingLoopActive = false; // requestAnimationFrame ループがアクティブか
+    let isProcessingLoopActive = false;
     let isProcessingImage = false; // 画像処理中（フリーズ防止用）
     let statusAnimationInterval = null; // ステータスアニメーションのインターバルID
 
@@ -64,16 +61,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function setUiState(isProcessing) {
         fileInput.disabled = isProcessing;
         captureButton.disabled = isProcessing;
-        stopButton.disabled = isProcessing;
+        // stopButtonは常に有効/無効を直接制御するため、ここでは制御しない
 
         if (isProcessing) {
             fileInputContainer.classList.add('processing-indicator');
             controlButtonsContainer.classList.add('processing-indicator');
             loadingSpinnerButton.style.display = 'block';
-            if (!isCameraRunning) { // カメラでなければカーソル変更
-                 initialImageDisplay.style.cursor = 'not-allowed';
-                 outputCanvas.style.cursor = 'not-allowed';
-            }
+            initialImageDisplay.style.cursor = 'not-allowed'; // カーソルを変更
+            outputCanvas.style.cursor = 'not-allowed'; // カーソルを変更
         } else {
             fileInputContainer.classList.remove('processing-indicator');
             controlButtonsContainer.classList.remove('processing-indicator');
@@ -84,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    updateStatus("OpenCV.jsをロード中...", "info", true); // ロード中はアニメーション表示
+    updateStatus("OpenCV.jsをロード中...", "info", true);
 
     // --- OpenCV.jsの初期化コールバックを設定 ---
     window.Module = window.Module || {};
@@ -94,48 +89,45 @@ document.addEventListener('DOMContentLoaded', () => {
             testMat.delete();
 
             updateStatus("OpenCV.jsが正常にロードされました！", "success");
-            console.log("OpenCV.jsが正常にロードされました！");
 
             setUiState(false); // UIを有効化
             captureButton.disabled = false;
-            stopButton.disabled = true; // 最初は停止ボタンは無効
+            stopButton.disabled = true;
 
             captureButton.addEventListener('click', toggleCamera);
             stopButton.addEventListener('click', stopProcessing);
             fileInput.addEventListener('change', handleImageUpload);
 
-            // --- 初期画像の処理を開始 ---
-            // hiddenImageForProcessingが完全にロードされてから処理を開始
-            if (hiddenImageForProcessing.complete && hiddenImageForProcessing.naturalWidth > 0) {
-                 requestAnimationFrame(() => processInitialImage(hiddenImageForProcessing));
-            } else {
-                hiddenImageForProcessing.onload = () => {
-                    requestAnimationFrame(() => processInitialImage(hiddenImageForProcessing));
-                };
-                hiddenImageForProcessing.onerror = () => {
-                    updateStatus(`初期画像 (${hiddenImageForProcessing.src}) のロードに失敗しました。`, "danger");
-                    console.error("初期画像ロードエラー:", hiddenImageForProcessing.src);
-                    outputCanvas.style.display = 'none'; 
-                    initialImageDisplay.style.display = 'none'; 
-                    setUiState(false); // UIを有効化
-                    captureButton.innerText = 'カメラ起動';
-                    stopButton.disabled = true;
-                };
-            }
+            // 初期画像はHTMLで表示するのみ。ユーザーが画像をタップしたら処理を開始。
+            initialImageDisplay.style.display = 'block'; // 初期画像を表示
+            outputCanvas.style.display = 'none'; // outputCanvasは非表示
+            initialImageDisplay.addEventListener('click', () => {
+                // 画像が完全にロードされていれば処理を開始
+                if (!isProcessingImage && !isCameraRunning && initialImageDisplay.complete && initialImageDisplay.naturalWidth > 0) { 
+                    processDisplayedImage(initialImageDisplay);
+                } else if (!isProcessingImage && !isCameraRunning) {
+                    updateStatus("画像がまだ読み込まれていません。", "warning");
+                }
+            });
+
+            updateStatus("画像をタップするか、ファイルを選択、またはカメラを起動してください。", "success");
 
         } catch (e) {
             updateStatus(`OpenCV.jsの初期化に失敗しました: ${e.message}`, "danger");
             console.error("OpenCV.js 初期化エラー:", e);
             setUiState(true); // 失敗時はUIを無効化
-            captureButton.disabled = true; // ボタンを無効化
+            captureButton.disabled = true;
             stopButton.disabled = true;
             fileInput.disabled = true;
         }
     };
 
     // --- 初期画像のロードと処理 ---
-    function processInitialImage(imageElement) {
-        updateStatus("初期画像を処理中...", "info", true); // 処理中はアニメーション
+    function processDisplayedImage(imageElement) {
+        if (isProcessingImage) return; 
+        isProcessingImage = true;
+        
+        updateStatus("画像処理を開始します...", "info", true); // 処理中はアニメーション
         setUiState(true); // UIを無効化
 
         videoElement.style.display = 'none';
@@ -143,19 +135,30 @@ document.addEventListener('DOMContentLoaded', () => {
         outputCanvas.width = imageElement.naturalWidth;
         outputCanvas.height = imageElement.naturalHeight;
         outputContext.drawImage(imageElement, 0, 0, outputCanvas.width, outputCanvas.height);
-        outputCanvas.style.display = 'block'; 
-
-        let srcMat = cv.imread(imageElement); 
         
-        processAndDisplayCoins(srcMat); 
-        srcMat.delete(); // メモリ解放
+        initialImageDisplay.style.display = 'none'; // 処理中は初期画像を非表示
+        outputCanvas.style.display = 'block'; // Canvasを表示
 
-        updateStatus("初期画像の処理が完了しました。", "success");
-        
-        setUiState(false); // UIを有効化
-        captureButton.innerText = 'カメラ起動';
-        stopButton.disabled = true; // 初期画像処理後は停止ボタンは無効
+        try {
+            let srcMat = cv.imread(imageElement); 
+            processAndDisplayCoins(srcMat); 
+            srcMat.delete(); 
+
+            updateStatus("画像処理が完了しました！", "success");
+
+        } catch (e) {
+            updateStatus(`画像処理中にエラーが発生しました: ${e.message}`, "danger");
+            console.error("画像処理エラー:", e);
+            outputCanvas.style.display = 'none';
+            initialImageDisplay.style.display = 'block'; 
+        } finally {
+            isProcessingImage = false; 
+            setUiState(false); // UIを有効化
+            captureButton.innerText = 'カメラ起動';
+            stopButton.disabled = true; // 画像処理完了後は停止ボタンは無効
+        }
     }
+
 
     // --- カメラの起動/停止の切り替え ---
     async function toggleCamera() {
@@ -169,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function startCamera() {
         if (isCameraRunning) return;
 
-        updateStatus("カメラを起動中...", "warning", true); // 起動中はアニメーション
+        updateStatus("カメラを起動中...", "warning", true); 
         setUiState(true); // UIを無効化 (カメラ起動中はファイル選択不可)
         
         stopProcessingLoop(); 
@@ -191,15 +194,15 @@ document.addEventListener('DOMContentLoaded', () => {
             videoElement.onloadedmetadata = () => {
                 outputCanvas.width = videoElement.videoWidth;
                 outputCanvas.height = videoElement.videoHeight;
-                updateStatus("カメラが起動しました！ 計数処理中...", "success", true); // 処理中はアニメーション
+                updateStatus("カメラが起動しました！ 計数処理中...", "success", true); 
                 
                 videoElement.play();
                 startProcessingLoop(processCameraFrame); 
             };
 
         } catch (err) {
-            const errorMessage = `カメラへのアクセスに失敗しました。詳細: ${err.name} - ${err.message}`;
-            updateStatus(errorMessage, "danger"); // エラー詳細化
+            const errorMessage = `カメラへのアクセスに失敗しました。詳細: ${err.name || "不明なエラー"} - ${err.message || "詳細なし"}`;
+            updateStatus(errorMessage, "danger"); 
             console.error("カメラアクセスエラー:", err);
             isCameraRunning = false;
             captureButton.innerText = 'カメラ起動';
@@ -208,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
             stopButton.disabled = true;
             videoStream = null;
             outputCanvas.style.display = 'none'; 
-            initialImageDisplay.style.display = 'block'; // エラー時は初期画像を表示に戻す
+            initialImageDisplay.style.display = 'block'; 
             setUiState(false); // UIを有効化
         }
     }
@@ -221,8 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         isCameraRunning = false;
         captureButton.innerText = 'カメラ起動';
-        captureButton.classList.remove('btn-danger');
-        captureButton.classList.add('btn-primary');
+        captureButton.classList.remove('btn-primary');
+        captureButton.classList.add('btn-primary'); // 色をプライマリに戻す
         stopButton.disabled = true; 
         stopProcessingLoop(); 
         updateStatus("カメラが停止しました。", "info");
@@ -236,15 +239,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function stopProcessing() {
         if (isCameraRunning) {
             stopCamera(); 
-        } else {
+        } else if (isProcessingImage || isProcessingLoopActive) { // 画像処理中またはループがアクティブな場合
             stopProcessingLoop(); 
             outputCanvas.style.display = 'none'; 
             updateStatus("画像処理を停止しました。", "info");
             resetCounts();
+            // 処理停止後は、初期画像を表示し、カメラ起動/ファイル選択可能な状態に戻す
+            initialImageDisplay.style.display = 'block'; 
+            setUiState(false); // UIを有効化
+            captureButton.innerText = 'カメラ起動';
+            stopButton.disabled = true;
         }
-        initialImageDisplay.style.display = 'block'; 
-        setUiState(false); // UIを有効化
-        captureButton.innerText = 'カメラ起動';
     }
 
     function startProcessingLoop(processFunction) {
@@ -302,14 +307,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (file) {
             const img = new Image();
             img.onload = function() {
-                updateStatus("画像を読み込み中...", "warning", true); // 読み込み中はアニメーション
+                updateStatus("画像を読み込み中...", "warning", true);
                 setUiState(true); // UI無効化
 
                 outputCanvas.width = img.width;
                 outputCanvas.height = img.height;
                 outputContext.drawImage(img, 0, 0, img.width, img.height); 
                 
-                updateStatus("画像処理を開始中...", "info", true); // 処理中はアニメーション
+                updateStatus("画像処理を開始中...", "info", true);
                 
                 let srcMat = cv.imread(img); // Image要素から直接imreadを呼び出す
                 processAndDisplayCoins(srcMat); 
