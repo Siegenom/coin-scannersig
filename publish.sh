@@ -10,8 +10,10 @@ CHANGES_STRING=$(grep -o 'meta name="changes" content="[^"]*"' index.html | head
 
 # メタ情報が取得できたか確認
 if [ -z "$APP_NAME" ] || [ -z "$VERSION_STRING" ] || [ -z "$CHANGES_STRING" ]; then
-  echo -e "\033[0;31mエラー: index.htmlからアプリケーションのメタ情報が取得できませんでした。\033[0m" # 赤色出力
-  echo -e "\033[0;31mHTMLの<meta>タグ（name='app-name', name='version', name='changes'）を確認してください。\033[0m" # 赤色出力
+  echo -e "\033[0;31mエラー: index.htmlからアプリケーションのメタ情報が取得できませんでした。HTMLの<meta>タグを確認してください。\033[0m" # 赤色出力
+  echo -e "\033[0;31m現在のディレクトリ: $(pwd)\033[0m" # 現在のディレクトリを表示
+  echo -e "\033[0;31mindex.htmlの存在確認:\033[0m"
+  ls -l index.html # index.htmlの存在とパーミッションを確認
   exit 1
 fi
 
@@ -32,8 +34,7 @@ echo "--- Git: 変更をコミット中... ---"
 if git commit -m "$COMMIT_MESSAGE"; then
   echo -e "\033[0;32m--- Git: コミット完了: '$COMMIT_MESSAGE' ---\033[0m" # 緑色出力
 else
-  echo -e "\033[0;31m--- Git: コミットする変更がありませんでした。またはコミットに失敗しました。 ---\033[0m" # 赤色出力
-  # コミットする変更がない場合も、プッシュは試行（リモートが最新でない可能性も考慮）
+  echo -e "\033[0;31m--- Git: コミットする変更がありませんでした、またはコミットに失敗しました。 ---\033[0m" # 赤色出力
 fi
 
 echo "--- Git: GitHubにプッシュ中... ---"
