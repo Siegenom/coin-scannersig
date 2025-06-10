@@ -81,11 +81,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (appVersionDisplay) {
                 const commitHash = versionInfo.currentCommitHash ? versionInfo.currentCommitHash.substring(0, 7) : 'N/A';
                 appVersionDisplay.innerText = `バージョン: ${versionInfo.appVersion} (${commitHash})`;
+
             }
             // === ここまでが修正部分 ===
             
             if (appChangesDisplay) {
-                appChangesDisplay.innerText = `${versionInfo.appChanges}`;
+                appChangesDisplay.innerText = `変更点: ${versionInfo.appChanges}`;
             }
             console.log("バージョン情報がロードされました:", versionInfo);
             return versionInfo;
